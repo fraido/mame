@@ -20,16 +20,21 @@ public:
 	// construction/destruction
 	se3208_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
+	// callback configuration
+	auto machinex_cb() { return m_machinex_cb.bind(); }
+	auto iackx_cb() { return m_iackx_cb.bind(); }
+
 protected:
 	// device-level overrides
+	virtual void device_resolve_objects() override;
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
 	// device_execute_interface overrides
-	virtual uint32_t execute_min_cycles() const override { return 1; }
-	virtual uint32_t execute_max_cycles() const override { return 1; }
-	virtual uint32_t execute_input_lines() const override { return 1; }
-	virtual bool execute_input_edge_triggered(int inputnum) const override { return inputnum == INPUT_LINE_NMI; }
+	virtual uint32_t execute_min_cycles() const noexcept override { return 1; }
+	virtual uint32_t execute_max_cycles() const noexcept override { return 1; }
+	virtual uint32_t execute_input_lines() const noexcept override { return 1; }
+	virtual bool execute_input_edge_triggered(int inputnum) const noexcept override { return inputnum == INPUT_LINE_NMI; }
 	virtual void execute_run() override;
 	virtual void execute_set_input(int inputnum, int state) override;
 
@@ -44,6 +49,9 @@ protected:
 
 private:
 	address_space_config m_program_config;
+
+	devcb_write8 m_machinex_cb;
+	devcb_read8 m_iackx_cb;
 
 	//GPR
 	uint32_t m_R[8];

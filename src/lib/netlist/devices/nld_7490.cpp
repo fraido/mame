@@ -7,12 +7,20 @@
 
 #include "nld_7490.h"
 #include "netlist/nl_base.h"
-#include "nlid_system.h"
 
 namespace netlist
 {
-	namespace devices
+namespace devices
+{
+
+	static C14CONSTEXPR const std::array<netlist_time, 4> delay =
 	{
+			NLTIME_FROM_NS(18),
+			NLTIME_FROM_NS(36) - NLTIME_FROM_NS(18),
+			NLTIME_FROM_NS(54) - NLTIME_FROM_NS(18),
+			NLTIME_FROM_NS(72) - NLTIME_FROM_NS(18)
+	};
+
 	NETLIB_OBJECT(7490)
 	{
 		NETLIB_CONSTRUCTOR(7490)
@@ -25,16 +33,25 @@ namespace netlist
 		, m_cnt(*this, "m_cnt", 0)
 		, m_last_A(*this, "m_last_A", 0)
 		, m_last_B(*this, "m_last_B", 0)
-		, m_Q(*this, {{"QA", "QB", "QC", "QD"}})
+		, m_Q(*this, {"QA", "QB", "QC", "QD"})
 		, m_power_pins(*this)
 		{
 		}
 
 	private:
 		NETLIB_UPDATEI();
-		NETLIB_RESETI();
+		NETLIB_RESETI()
+		{
+			m_cnt = 0;
+			m_last_A = 0;
+			m_last_B = 0;
+		}
 
-		void update_outputs();
+		void update_outputs() noexcept
+		{
+			for (std::size_t i=0; i<4; i++)
+				m_Q[i].push((m_cnt >> i) & 1, delay[i]);
+		}
 
 		logic_input_t m_A;
 		logic_input_t m_B;
@@ -51,42 +68,32 @@ namespace netlist
 		nld_power_pins m_power_pins;
 	};
 
-	NETLIB_OBJECT_DERIVED(7490_dip, 7490)
+	NETLIB_OBJECT(7490_dip)
 	{
-		NETLIB_CONSTRUCTOR_DERIVED(7490_dip, 7490)
+		NETLIB_CONSTRUCTOR(7490_dip)
+		, A(*this, "A")
 		{
-			register_subalias("1", "B");
-			register_subalias("2", "R1");
-			register_subalias("3", "R2");
+			register_subalias("1", "A.B");
+			register_subalias("2", "A.R1");
+			register_subalias("3", "A.R2");
 
 			// register_subalias("4", ); --> NC
-			register_subalias("5", "VCC");
-			register_subalias("6", "R91");
-			register_subalias("7", "R92");
+			register_subalias("5", "A.VCC");
+			register_subalias("6", "A.R91");
+			register_subalias("7", "A.R92");
 
-			register_subalias("8", "QC");
-			register_subalias("9", "QB");
-			register_subalias("10", "GND");
-			register_subalias("11", "QD");
-			register_subalias("12", "QA");
+			register_subalias("8", "A.QC");
+			register_subalias("9", "A.QB");
+			register_subalias("10", "A.GND");
+			register_subalias("11", "A.QD");
+			register_subalias("12", "A.QA");
 			// register_subalias("13", ); --> NC
-			register_subalias("14", "A");
+			register_subalias("14", "A.A");
 		}
-	};
-
-	NETLIB_RESET(7490)
-	{
-		m_cnt = 0;
-		m_last_A = 0;
-		m_last_B = 0;
-	}
-
-	static constexpr const netlist_time delay[4] =
-	{
-			NLTIME_FROM_NS(18),
-			NLTIME_FROM_NS(36) - NLTIME_FROM_NS(18),
-			NLTIME_FROM_NS(54) - NLTIME_FROM_NS(18),
-			NLTIME_FROM_NS(72) - NLTIME_FROM_NS(18)
+		NETLIB_RESETI() {}
+		NETLIB_UPDATEI() {}
+	private:
+		NETLIB_SUB(7490) A;
 	};
 
 	NETLIB_UPDATE(7490)
@@ -123,14 +130,8 @@ namespace netlist
 		m_last_B = new_B;
 	}
 
-	NETLIB_FUNC_VOID(7490, update_outputs, ())
-	{
-		for (std::size_t i=0; i<4; i++)
-			m_Q[i].push((m_cnt >> i) & 1, delay[i]);
-	}
-
 	NETLIB_DEVICE_IMPL(7490,     "TTL_7490",        "+A,+B,+R1,+R2,+R91,+R92,@VCC,@GND")
 	NETLIB_DEVICE_IMPL(7490_dip, "TTL_7490_DIP",    "")
 
-	} //namespace devices
+} // namespace devices
 } // namespace netlist

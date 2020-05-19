@@ -84,8 +84,8 @@ private:
 	DECLARE_WRITE8_MEMBER(hitpoker_cram_w);
 	DECLARE_READ8_MEMBER(hitpoker_paletteram_r);
 	DECLARE_WRITE8_MEMBER(hitpoker_paletteram_w);
-	DECLARE_READ8_MEMBER(hitpoker_pic_r);
-	DECLARE_WRITE8_MEMBER(hitpoker_pic_w);
+	uint8_t hitpoker_pic_r(offs_t offset);
+	void hitpoker_pic_w(offs_t offset, uint8_t data);
 	virtual void video_start() override;
 	uint32_t screen_update_hitpoker(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	required_device<mc68hc11_cpu_device> m_maincpu;
@@ -190,7 +190,7 @@ WRITE8_MEMBER(hitpoker_state::hitpoker_paletteram_w)
 }
 
 
-READ8_MEMBER(hitpoker_state::hitpoker_pic_r)
+uint8_t hitpoker_state::hitpoker_pic_r(offs_t offset)
 {
 //  logerror("R\n");
 
@@ -208,7 +208,7 @@ READ8_MEMBER(hitpoker_state::hitpoker_pic_r)
 	return m_sys_regs;
 }
 
-WRITE8_MEMBER(hitpoker_state::hitpoker_pic_w)
+void hitpoker_state::hitpoker_pic_w(offs_t offset, uint8_t data)
 {
 	if(offset == 0)
 		m_pic_data = (data & 0xff);// | (data & 0x40) ? 0x80 : 0x00;
@@ -236,7 +236,7 @@ void hitpoker_state::hitpoker_map(address_map &map)
 	map(0xbe81, 0xbe81).w("crtc", FUNC(mc6845_device::register_w));
 	map(0xbe90, 0xbe91).rw("aysnd", FUNC(ay8910_device::data_r), FUNC(ay8910_device::address_data_w));
 	map(0xbea0, 0xbea0).portr("VBLANK"); //probably other bits as well
-//  AM_RANGE(0xbe00, 0xbeff) AM_READ(test_r)
+//  map(0xbe00, 0xbeff).r(FUNC(hitpoker_state::test_r));
 	map(0xc000, 0xdfff).rw(FUNC(hitpoker_state::hitpoker_cram_r), FUNC(hitpoker_state::hitpoker_cram_w));
 	map(0xe000, 0xefff).rw(FUNC(hitpoker_state::hitpoker_paletteram_r), FUNC(hitpoker_state::hitpoker_paletteram_w));
 }
@@ -349,7 +349,7 @@ GFXDECODE_END
 
 void hitpoker_state::hitpoker(machine_config &config)
 {
-	MC68HC11A1(config, m_maincpu, 1000000);
+	MC68HC11A1(config, m_maincpu, 8'000'000);
 	m_maincpu->set_addrmap(AS_PROGRAM, &hitpoker_state::hitpoker_map);
 	m_maincpu->in_pa_callback().set(FUNC(hitpoker_state::hitpoker_pic_r));
 	m_maincpu->out_pa_callback().set(FUNC(hitpoker_state::hitpoker_pic_w));

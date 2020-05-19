@@ -177,6 +177,8 @@ void interpro_ioga_device::device_start()
 	m_fdc_tc_func.resolve();
 	m_eth_ca_func.resolve();
 
+	m_hwicr = std::make_unique<u16[]>(get_int_count());
+
 	for (dma_channel_t &dma_channel : m_dma_channel)
 	{
 		dma_channel.device_r.resolve();
@@ -219,7 +221,7 @@ void interpro_ioga_device::device_reset()
 	m_irq_vector = 0;
 	m_line_state = 0;
 
-	m_hwicr = std::make_unique<u16[]>(get_int_count());
+	std::fill_n(m_hwicr.get(), get_int_count(), u16(0));
 
 	// initialise dma state
 	for (dma_channel_t &dma_channel : m_dma_channel)
@@ -261,7 +263,7 @@ void sapphire_ioga_device::device_reset()
 /*
  * Interrupts
  */
-WRITE32_MEMBER(interpro_ioga_device::bus_error)
+void interpro_ioga_device::bus_error(offs_t offset, u32 data)
 {
 	LOG("bus_error address 0x%08x businfo 0x%08x\n", data, offset);
 
@@ -1255,7 +1257,7 @@ READ32_MEMBER(interpro_ioga_device::mouse_status_r)
 	return result;
 }
 
-WRITE32_MEMBER(interpro_ioga_device::mouse_status_w)
+void interpro_ioga_device::mouse_status_w(offs_t offset, u32 data, u32 mem_mask)
 {
 	LOGMASKED(LOG_MOUSE, "mouse_status_w status 0x%08x mask 0x%08x\n",
 		data, mem_mask);

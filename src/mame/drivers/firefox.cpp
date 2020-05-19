@@ -69,8 +69,6 @@ public:
 		m_mainbank(*this, "mainbank")
 	{ }
 
-	DECLARE_CUSTOM_INPUT_MEMBER(mainflag_r);
-	DECLARE_CUSTOM_INPUT_MEMBER(soundflag_r);
 	void firefox(machine_config &config);
 
 private:
@@ -98,8 +96,8 @@ private:
 	DECLARE_WRITE8_MEMBER(self_reset_w);
 	DECLARE_WRITE_LINE_MEMBER(coin_counter_right_w);
 	DECLARE_WRITE_LINE_MEMBER(coin_counter_left_w);
-	DECLARE_READ8_MEMBER(riot_porta_r);
-	DECLARE_WRITE8_MEMBER(riot_porta_w);
+	uint8_t riot_porta_r();
+	void riot_porta_w(uint8_t data);
 	TILE_GET_INFO_MEMBER(bgtile_get_info);
 	uint32_t screen_update_firefox(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(video_timer_callback);
@@ -237,7 +235,7 @@ WRITE8_MEMBER(firefox_state::firefox_disc_data_w)
 
 TILE_GET_INFO_MEMBER(firefox_state::bgtile_get_info)
 {
-	SET_TILE_INFO_MEMBER(0, m_tileram[tile_index], 0, 0);
+	tileinfo.set(0, m_tileram[tile_index], 0, 0);
 }
 
 
@@ -250,7 +248,7 @@ WRITE8_MEMBER(firefox_state::tileram_w)
 
 void firefox_state::video_start()
 {
-	m_bgtiles = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(firefox_state::bgtile_get_info),this), TILEMAP_SCAN_ROWS, 8,8, 64,64);
+	m_bgtiles = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(firefox_state::bgtile_get_info)), TILEMAP_SCAN_ROWS, 8,8, 64,64);
 	m_bgtiles->set_transparent_pen(0);
 	m_bgtiles->set_scrolldy(m_screen->visible_area().top(), 0);
 }
@@ -330,16 +328,6 @@ WRITE8_MEMBER(firefox_state::firefox_objram_bank_w)
  *
  *************************************/
 
-CUSTOM_INPUT_MEMBER(firefox_state::mainflag_r)
-{
-	return m_soundlatch->pending_r() ? 1 : 0;
-}
-
-CUSTOM_INPUT_MEMBER(firefox_state::soundflag_r)
-{
-	return m_soundlatch2->pending_r() ? 1 : 0;
-}
-
 WRITE_LINE_MEMBER(firefox_state::sound_reset_w)
 {
 	m_audiocpu->set_input_line(INPUT_LINE_RESET, state ? ASSERT_LINE : CLEAR_LINE);
@@ -357,7 +345,7 @@ WRITE_LINE_MEMBER(firefox_state::sound_reset_w)
  *
  *************************************/
 
-READ8_MEMBER(firefox_state::riot_porta_r)
+uint8_t firefox_state::riot_porta_r()
 {
 	/* bit 7 = MAINFLAG */
 	/* bit 6 = SOUNDFLAG */
@@ -371,7 +359,7 @@ READ8_MEMBER(firefox_state::riot_porta_r)
 	return (m_soundlatch->pending_r() ? 0x80 : 0x00) | (m_soundlatch2->pending_r() ? 0x40 : 0x00) | 0x10 | (m_tms->readyq_r() << 2);
 }
 
-WRITE8_MEMBER(firefox_state::riot_porta_w)
+void firefox_state::riot_porta_w(uint8_t data)
 {
 	/* handle 5220 read */
 	m_tms->rsq_w((data>>1) & 1);
@@ -389,8 +377,8 @@ WRITE8_MEMBER(firefox_state::riot_porta_w)
 
 WRITE8_MEMBER(firefox_state::nvram_w)
 {
-	m_nvram_1c->write(space, offset, data >> 4);
-	m_nvram_1d->write(space, offset, data & 0xf);
+	m_nvram_1c->write(offset, data >> 4);
+	m_nvram_1d->write(offset, data & 0xf);
 }
 
 READ8_MEMBER(firefox_state::nvram_r)
@@ -540,8 +528,8 @@ static INPUT_PORTS_START( firefox )
 	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_UNUSED )
 
 	PORT_START("rdin1")
-	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_CUSTOM_MEMBER(DEVICE_SELF, firefox_state,mainflag_r, nullptr)
-	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_CUSTOM_MEMBER(DEVICE_SELF, firefox_state,soundflag_r, nullptr)
+	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_READ_LINE_DEVICE_MEMBER("soundlatch", generic_latch_8_device, pending_r)
+	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_READ_LINE_DEVICE_MEMBER("soundlatch2", generic_latch_8_device, pending_r)
 	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_VBLANK("screen")
 	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_SERVICE )
 	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_UNUSED )
@@ -656,7 +644,7 @@ void firefox_state::firefox(machine_config &config)
 	M6502(config, m_audiocpu, MASTER_XTAL/8);
 	m_audiocpu->set_addrmap(AS_PROGRAM, &firefox_state::audio_map);
 
-	config.m_minimum_quantum = attotime::from_hz(60000);
+	config.set_maximum_quantum(attotime::from_hz(60000));
 
 	adc0809_device &adc(ADC0809(config, "adc", MASTER_XTAL/16)); // nominally 900 kHz
 	adc.in_callback<0>().set_ioport("PITCH");

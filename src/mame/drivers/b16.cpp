@@ -57,8 +57,8 @@ private:
 	DECLARE_WRITE8_MEMBER(b16_6845_data_w);
 	DECLARE_READ8_MEMBER(unk_dev_r);
 	DECLARE_WRITE8_MEMBER(unk_dev_w);
-	DECLARE_READ8_MEMBER(memory_read_byte);
-	DECLARE_WRITE8_MEMBER(memory_write_byte);
+	uint8_t memory_read_byte(offs_t offset);
+	void memory_write_byte(offs_t offset, uint8_t data);
 
 	uint32_t screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 
@@ -253,13 +253,13 @@ static GFXDECODE_START( gfx_b16 )
 	GFXDECODE_ENTRY( "pcg", 0x0000, b16_charlayout, 0, 1 )
 GFXDECODE_END
 
-READ8_MEMBER(b16_state::memory_read_byte)
+uint8_t b16_state::memory_read_byte(offs_t offset)
 {
 	address_space& prog_space = m_maincpu->space(AS_PROGRAM);
 	return prog_space.read_byte(offset);
 }
 
-WRITE8_MEMBER(b16_state::memory_write_byte)
+void b16_state::memory_write_byte(offs_t offset, uint8_t data)
 {
 	address_space& prog_space = m_maincpu->space(AS_PROGRAM);
 	return prog_space.write_byte(offset, data);
@@ -298,7 +298,7 @@ void b16_state::b16(machine_config &config)
 
 /* ROM definition */
 ROM_START( b16 )
-	ROM_REGION( 0x4000, "ipl", ROMREGION_ERASEFF )
+	ROM_REGION16_LE( 0x4000, "ipl", ROMREGION_ERASEFF )
 	ROM_LOAD( "ipl.rom", 0x0000, 0x4000, CRC(7c1c93d5) SHA1(2a1e63a689c316ff836f21646166b38714a18e03) )
 
 	ROM_REGION( 0x4000/2, "pcg", ROMREGION_ERASE00 )

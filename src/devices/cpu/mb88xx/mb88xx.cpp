@@ -121,8 +121,8 @@ mb88_cpu_device::mb88_cpu_device(const machine_config &mconfig, device_type type
 	, m_read_k(*this)
 	, m_write_o(*this)
 	, m_write_p(*this)
-	, m_read_r{{*this}, {*this}, {*this}, {*this}}
-	, m_write_r{{*this}, {*this}, {*this}, {*this}}
+	, m_read_r(*this)
+	, m_write_r(*this)
 	, m_read_si(*this)
 	, m_write_so(*this)
 {
@@ -189,10 +189,8 @@ void mb88_cpu_device::device_start()
 	m_read_k.resolve_safe(0);
 	m_write_o.resolve_safe();
 	m_write_p.resolve_safe();
-	for (auto &cb : m_read_r)
-		cb.resolve_safe(0);
-	for (auto &cb : m_write_r)
-		cb.resolve_safe();
+	m_read_r.resolve_all_safe(0);
+	m_write_r.resolve_all_safe();
 	m_read_si.resolve_safe(0);
 	m_write_so.resolve_safe();
 
@@ -370,13 +368,13 @@ int mb88_cpu_device::pla( int inA, int inB )
 
 void mb88_cpu_device::execute_set_input(int inputnum, int state)
 {
-	/* on falling edge trigger interrupt */
-	if ( (m_pio & 0x04) && m_nf && state == CLEAR_LINE )
+	/* on rising edge trigger interrupt */
+	if ( (m_pio & 0x04) && !m_nf && state == ASSERT_LINE )
 	{
 		m_pending_interrupt |= INT_CAUSE_EXTERNAL;
 	}
 
-	m_nf = (state != CLEAR_LINE) ? 1 : 0;
+	m_nf = state == ASSERT_LINE;
 }
 
 void mb88_cpu_device::update_pio_enable( uint8_t newpio )

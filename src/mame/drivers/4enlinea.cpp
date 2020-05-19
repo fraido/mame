@@ -329,8 +329,8 @@ void isa8_cga_4enlinea_device::device_start()
 	m_vram_size = 0x4000;
 	m_vram.resize(m_vram_size);
 
-	//m_isa->install_device(0x3bf, 0x3bf, 0, 0, nullptr, write8_delegate( FUNC(isa8_cga_4enlinea_device::_4enlinea_mode_control_w), this ) );
-	m_isa->install_device(0x3d0, 0x3df, read8_delegate( FUNC(isa8_cga_4enlinea_device::_4enlinea_io_read), this ), write8_delegate( FUNC(isa8_cga_device::io_write), this ) );
+	//m_isa->install_device(0x3bf, 0x3bf, 0, 0, nullptr, write8_delegate(*this, FUNC(isa8_cga_4enlinea_device::_4enlinea_mode_control_w)));
+	m_isa->install_device(0x3d0, 0x3df, read8_delegate(*this, FUNC(isa8_cga_4enlinea_device::_4enlinea_io_read)), write8_delegate(*this, FUNC(isa8_cga_device::io_write)));
 	m_isa->install_bank(0x8000, 0xbfff, "bank1", &m_vram[0]);
 
 	/* Initialise the cga palette */
@@ -379,7 +379,7 @@ READ8_MEMBER(_4enlinea_state::serial_r)
 void _4enlinea_state::main_map(address_map &map)
 {
 	map(0x0000, 0x7fff).rom();
-//  AM_RANGE(0x8000, 0xbfff) AM_RAM // CGA VRAM
+//  map(0x8000, 0xbfff).ram(); // CGA VRAM
 	map(0xc000, 0xdfff).ram();
 
 	map(0xe000, 0xe001).r(FUNC(_4enlinea_state::serial_r));
@@ -389,7 +389,7 @@ void _4enlinea_state::main_portmap(address_map &map)
 {
 	map.global_mask(0x3ff);
 
-//  AM_RANGE(0x3d4, 0x3df) CGA regs
+//  map(0x3d4, 0x3df) CGA regs
 	map(0x3bf, 0x3bf).nopw(); // CGA mode control, TODO
 }
 
@@ -614,7 +614,7 @@ void _4enlinea_state::_4enlinea(machine_config &config)
 	audiocpu.set_addrmap(AS_PROGRAM, &_4enlinea_state::audio_map);
 	audiocpu.set_periodic_int(FUNC(_4enlinea_state::_4enlinea_audio_irq), attotime::from_hz(60)); //TODO
 
-	I2CMEM(config, m_eeprom).set_page_size(16).set_data_size(0x800); // X24C16P
+	I2C_24C16(config, m_eeprom); // X24C16P
 
 	// FIXME: determine ISA bus clock
 	isa8_device &isa(ISA8(config, "isa", 0));
@@ -650,7 +650,7 @@ void _4enlinea_state::k7_olym(machine_config &config)
 
 	NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_0); // D4464C-15L (6264) + battery
 
-	I2CMEM(config, m_eeprom).set_page_size(16).set_data_size(0x800); // X24C16P
+	I2C_24C16(config, m_eeprom); // X24C16P
 
 	isa8_device &isa(ISA8(config, "isa", 0));
 	isa.set_memspace("maincpu", AS_PROGRAM);

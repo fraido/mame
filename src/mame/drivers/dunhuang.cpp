@@ -100,11 +100,11 @@ private:
 	DECLARE_WRITE8_MEMBER(block_addr_hi_w);
 	DECLARE_WRITE8_MEMBER(block_h_w);
 	DECLARE_WRITE8_MEMBER(layers_w);
-	DECLARE_WRITE8_MEMBER(input_w);
+	void input_w(uint8_t data);
 	DECLARE_READ8_MEMBER(service_r);
 	DECLARE_READ8_MEMBER(input_r);
 	DECLARE_WRITE8_MEMBER(rombank_w);
-	DECLARE_READ8_MEMBER(dsw_r);
+	uint8_t dsw_r();
 	uint32_t screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 
 	void dunhuang_io_map(address_map &map);
@@ -166,19 +166,19 @@ TILE_GET_INFO_MEMBER(dunhuang_state::get_tile_info)
 {
 	uint16_t code = m_videoram[tile_index];
 	uint8_t color = m_colorram[tile_index] & 0x0f;
-	SET_TILE_INFO_MEMBER(0, code, color, 0);
+	tileinfo.set(0, code, color, 0);
 }
 TILE_GET_INFO_MEMBER(dunhuang_state::get_tile_info2)
 {
 	uint16_t code = m_videoram2[tile_index];
 	uint8_t color = m_colorram2[tile_index] & 0x0f;
-	SET_TILE_INFO_MEMBER(1, code, color, 0);
+	tileinfo.set(1, code, color, 0);
 }
 
 void dunhuang_state::video_start()
 {
-	m_tmap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(dunhuang_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8,8, 0x40,0x20);
-	m_tmap2 = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(FUNC(dunhuang_state::get_tile_info2),this), TILEMAP_SCAN_ROWS, 8,32, 0x40,0x8);
+	m_tmap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(dunhuang_state::get_tile_info)), TILEMAP_SCAN_ROWS, 8,8, 0x40,0x20);
+	m_tmap2 = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(dunhuang_state::get_tile_info2)), TILEMAP_SCAN_ROWS, 8,32, 0x40,0x8);
 
 	m_tmap->set_transparent_pen(0);
 	m_tmap2->set_transparent_pen(0);
@@ -439,7 +439,7 @@ void dunhuang_state::dunhuang_map(address_map &map)
 
 // Inputs
 
-WRITE8_MEMBER(dunhuang_state::input_w)
+void dunhuang_state::input_w(uint8_t data)
 {
 	m_input = data;
 }
@@ -452,7 +452,7 @@ READ8_MEMBER(dunhuang_state::service_r)
 	;
 }
 
-READ8_MEMBER(dunhuang_state::dsw_r)
+uint8_t dunhuang_state::dsw_r()
 {
 	if (!(m_input & 0x01))  return m_dsw[0]->read();
 	if (!(m_input & 0x02))  return m_dsw[1]->read();
@@ -499,7 +499,7 @@ void dunhuang_state::dunhuang_io_map(address_map &map)
 
 	map(0x000f, 0x000f).w(FUNC(dunhuang_state::block_addr_lo_w));
 	map(0x0010, 0x0010).w(FUNC(dunhuang_state::block_addr_hi_w));
-//  AM_RANGE( 0x0011, 0x0011 ) ?
+//  map(0x0011, 0x0011) ?
 	map(0x0012, 0x0012).w(FUNC(dunhuang_state::block_c_w));
 	map(0x0015, 0x0015).w(FUNC(dunhuang_state::block_x_w));
 	map(0x0016, 0x0016).w(FUNC(dunhuang_state::block_y_w));

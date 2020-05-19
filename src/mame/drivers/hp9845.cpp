@@ -38,7 +38,7 @@
 #include "emu.h"
 #include "includes/hp9845.h"
 
-#include "bus/hp_optroms/hp_optrom.h"
+#include "machine/hp9845_optrom.h"
 #include "bus/hp9845_io/hp9845_io.h"
 #include "machine/timer.h"
 
@@ -473,8 +473,8 @@ void hp9845_base_state::device_reset()
 
 	// Then, set r/w handlers of all installed I/O cards
 	int sc;
-	read16_delegate rhandler;
-	write16_delegate whandler;
+	read16_delegate rhandler(*this);
+	write16_delegate whandler(*this);
 	for (unsigned i = 0; 4 > i; ++i) {
 		if ((sc = m_io_slot[i]->get_rw_handlers(rhandler , whandler)) >= 0) {
 			logerror("Install R/W handlers for slot %u @ SC = %d\n", i, sc);
@@ -3663,7 +3663,7 @@ void hp9845_base_state::hp9845_base(machine_config &config)
 	m_ppu->set_9845_boot_mode(true);
 	m_ppu->set_rw_cycles(6 , 6);
 	m_ppu->set_relative_mode(true);
-	m_ppu->set_irq_acknowledge_callback("io_sys" , FUNC(hp98x5_io_sys_device::irq_callback));
+	m_ppu->int_cb().set(m_io_sys , FUNC(hp98x5_io_sys_device::int_r));
 	m_ppu->pa_changed_cb().set(m_io_sys , FUNC(hp98x5_io_sys_device::pa_w));
 
 	HP98X5_IO_SYS(config , m_io_sys , 0);
@@ -3701,14 +3701,14 @@ void hp9845_base_state::hp9845_base(machine_config &config)
 	// right-hand side and left-hand side drawers, respectively.
 	// Here we do away with the distinction between LPU & PPU ROMs: in the end they
 	// are visible to both CPUs at the same addresses.
-	HP_OPTROM_SLOT(config, "drawer1", 0);
-	HP_OPTROM_SLOT(config, "drawer2", 0);
-	HP_OPTROM_SLOT(config, "drawer3", 0);
-	HP_OPTROM_SLOT(config, "drawer4", 0);
-	HP_OPTROM_SLOT(config, "drawer5", 0);
-	HP_OPTROM_SLOT(config, "drawer6", 0);
-	HP_OPTROM_SLOT(config, "drawer7", 0);
-	HP_OPTROM_SLOT(config, "drawer8", 0);
+	HP9845_OPTROM(config, "drawer1", 0);
+	HP9845_OPTROM(config, "drawer2", 0);
+	HP9845_OPTROM(config, "drawer3", 0);
+	HP9845_OPTROM(config, "drawer4", 0);
+	HP9845_OPTROM(config, "drawer5", 0);
+	HP9845_OPTROM(config, "drawer6", 0);
+	HP9845_OPTROM(config, "drawer7", 0);
+	HP9845_OPTROM(config, "drawer8", 0);
 
 	// I/O slots
 	for (unsigned slot = 0; slot < 4; slot++) {

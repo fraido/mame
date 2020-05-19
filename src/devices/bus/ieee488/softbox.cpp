@@ -100,7 +100,7 @@ void softbox_device::softbox_io(address_map &map)
 
 READ8_MEMBER( softbox_device::ppi0_pa_r )
 {
-	return m_bus->read_dio() ^ 0xff;
+	return m_bus->dio_r() ^ 0xff;
 }
 
 WRITE8_MEMBER( softbox_device::ppi0_pb_w )
@@ -187,7 +187,7 @@ READ8_MEMBER( softbox_device::ppi1_pc_r )
 
 	*/
 
-	uint8_t status = m_hdc->status_r(space, 0);
+	uint8_t status = m_hdc->status_r();
 	uint8_t data = 0;
 
 	data |= (status & corvus_hdc_device::CONTROLLER_BUSY) ? 0 : 0x10;

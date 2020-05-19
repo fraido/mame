@@ -6,14 +6,40 @@ VTech Genius Junior series
 
 CPU is 68HC05 derived?
 
-Other known international versions:
-- Pitagorín (Spanish version of Genius Leader Notebook)
+Other known undumped international versions:
+- Genius 4000 (French version of Genius Leader 4000)
+- Genius 5000 (French version of Genius Leader 5000)
+- Genius PRO (French version of Genius Leader Select)
 - Pitagorín Plus (Spanish version of Genius Junior Redstar 3)
+- PreComputer Notebook (alternate English version of Genius Leader Notebook)
+- Smart Start Animated (alternate English version of Genius Junior Redstar)
 - El Super-Ordenador Parlanchín (alternate Spanish version of Genius Junior Movie)
+- Talande Smart Start Laptop (Swedish version of Genius Junior Movie)
 - Talking Whiz-Kid Animated (English version of Genius Junior Redstar)
 - Talking Whiz-Kid Genius (English version of Genius Junior Movie)
 - Talking Whiz-Kid Notebook (English version of Genius Leader Notebook)
 - Talking Whiz-Kid Power Mouse (English version of Genius Leader Select)
+- Talking Whiz-Kid Super Animated (English version of Genius Junior Redstar 3)
+
+Undumped VTech laptops possibly on similar hardware:
+- Genius Einstein (French version of Genius Leader Action)
+- Genius Explorations (French version; German version unknown)
+- Genius Junior Profi 2
+- Genius Leader Action
+- Genius Leader Notebook Plus
+- Genius Master Notebook MM
+- Genius Master Power Maus
+- Genius Prodige (French version of Genius Master Power Maus)
+- Genius Progress (French version of Genius Junior Profi 2)
+- Mega Ratón Parlanchín (Spanish version of Genius Explorations)
+- PreComputer Notebook II (English version of Genius Leader Notebook Plus)
+- Smart Start Future (alternate English version of Genius Junior Profi 2)
+- Talking Einstein (English version of Genius Leader Action)
+- Talking Whiz-Kid Explorer (alternate English version of Genius Leader Action)
+- Talking Whiz-Kid Laptop (English version of Genius Junior Profi 2)
+- Talking Whiz-Kid Major Mouse (alternate English version of Genius Explorations)
+- Talking Whiz-Kid Notebook 2000 (English version of Genius Master Notebook MM)
+- Talking Whiz-Kid Power Mouse Deluxe (English version of Genius Explorations)
 
 */
 
@@ -64,7 +90,7 @@ Other known international versions:
 
   1x Unknown CPU inside an epoxy blob (more than 100 connections) @ U? (covered with the blob).
   1x VTech LH532HJT mask ROM (originary from Sharp) also silkscreened '9811D' @ U3.
-  1x Texas Instruments 84C91HT (CSM10150AN) speech synth with 8-bit microprocessor @ U2.
+  1x Texas Instruments TSP50C10 (CSM10150AN) speech synth with 8-bit microprocessor @ U2.
   1x SN74HC00N @ U5.
   1x SN74HC244N @ U4.
 
@@ -146,7 +172,7 @@ Other known international versions:
                 '---------'
 
 
-  U2 - Texas Instruments 84C91HT (CSM10150AN).
+  U2 - Texas Instruments TSP50C10 (CSM10150AN).
 
        Speech Generator with 8-bit microprocessor, 8K ROM, 112 bytes RAM.
        Maximum Clock Frequency = 9.6 MHz.
@@ -247,13 +273,6 @@ void geniusjr_state::gln(machine_config &config)
 	subdevice<software_list_device>("cart_list")->set_original("gln");
 }
 
-void geniusjr_state::gls(machine_config &config)
-{
-	gj4000(config);
-
-	subdevice<software_list_device>("cart_list")->set_original("gls");
-}
-
 void geniusjr_state::gj5000(machine_config &config)
 {
 	M68HC05L9(config, m_maincpu, 8'000'000); // unknown clock (type also uncertain)
@@ -279,6 +298,13 @@ void geniusjr_state::gjmovie(machine_config &config)
 	gjrstar(config);
 
 	subdevice<software_list_device>("cart_list")->set_original("gjmovie");
+}
+
+void geniusjr_state::gls(machine_config &config)
+{
+	gjrstar(config);
+
+	subdevice<software_list_device>("cart_list")->set_original("gls");
 }
 
 
@@ -312,6 +338,9 @@ ROM_START( pitagjr )
 
 	ROM_REGION( 0x40000, "extrom", 0 )
 	ROM_LOAD( "lh532hjt_9811d.u3", 0x00000, 0x40000, CRC(23878b45) SHA1(8f3c41c10cfde9d76763c3a8701ec6616db4ab40) )
+
+	ROM_REGION( 0x2000, "speech", 0 )
+	ROM_LOAD( "csm10150an.u2", 0x0000, 0x2000, NO_DUMP ) // TSP50C10 (8K bytes of ROM) labeled "CSM10150AN"
 ROM_END
 
 ROM_START( gjrstar )
@@ -346,12 +375,23 @@ ROM_START( gln )
 	ROM_LOAD( "27-5308-00_9524_d.bin", 0x000000, 0x080000, CRC(d1b994ee) SHA1(b5cf0810df0676712e4f30e279cc46c19b4277dd))
 ROM_END
 
-ROM_START( gls )
+ROM_START( pitagor )
 	ROM_REGION( 0x2000, "maincpu", 0 )
 	ROM_LOAD( "hc05_internal.bin", 0x0000, 0x2000, NO_DUMP )
 
 	ROM_REGION( 0x80000, "extrom", 0 )
-	ROM_LOAD( "gls.bin", 0x000000, 0x080000, NO_DUMP )
+	ROM_LOAD( "27-5374-00.u2", 0x000000, 0x80000, CRC(89a8fe7d) SHA1(dff06f7313af22c6c19b1f00c0651a64cc505fe2))
+
+	ROM_REGION( 0x2000, "speech", 0 )
+	ROM_LOAD( "csm10150an.u1", 0x0000, 0x2000, NO_DUMP ) // TSP50C10 (8K bytes of ROM) labeled "64C_4TT VIDEO TECH CSM10150AN"
+ROM_END
+
+ROM_START( gls )
+	ROM_REGION( 0x2000, "maincpu", 0 )
+	ROM_LOAD( "hc05_internal.bin", 0x0000, 0x2000, NO_DUMP )
+
+	ROM_REGION( 0x40000, "extrom", 0 )
+	ROM_LOAD( "27-5635-00.u2", 0x000000, 0x40000, CRC(bc3c0587) SHA1(fe98f162bd80d96ce3264087b5869f4505955464))
 ROM_END
 
 
@@ -364,4 +404,5 @@ COMP( 1996, gjrstar2, gjrstar, 0,      gjrstar,  geniusjr, geniusjr_state, empty
 COMP( 1998, gjrstar3, 0,       0,      gjrstar,  geniusjr, geniusjr_state, empty_init, "VTech",  "Genius Junior Redstar 3 (Germany)", MACHINE_IS_SKELETON )
 COMP( 1998, gj5000,   0,       0,      gj5000,   geniusjr, geniusjr_state, empty_init, "VTech",  "Genius Junior 5000 (Germany)",      MACHINE_IS_SKELETON )
 COMP( 1993, gln,      0,       0,      gln,      geniusjr, geniusjr_state, empty_init, "VTech",  "Genius Leader Notebook",            MACHINE_IS_SKELETON )
-COMP( 199?, gls,      0,       0,      gls,      geniusjr, geniusjr_state, empty_init, "VTech",  "Genius Leader Select",              MACHINE_IS_SKELETON ) // placeholder driver to attach cartridge dumps to
+COMP( 1993, pitagor,  gln,     0,      gln,      geniusjr, geniusjr_state, empty_init, "VTech",  "Pitagorin",                         MACHINE_IS_SKELETON )
+COMP( 1995, gls,      0,       0,      gls,      geniusjr, geniusjr_state, empty_init, "VTech",  "Genius Leader Select",              MACHINE_IS_SKELETON )

@@ -141,7 +141,7 @@ void bbc_state::set_pixel_lookup()
 }
 
 
-WRITE8_MEMBER(bbc_state::video_ula_w)
+void bbc_state::video_ula_w(offs_t offset, uint8_t data)
 {
 	// Make sure vpos is never <0
 	int vpos = m_screen->vpos();
@@ -150,7 +150,7 @@ WRITE8_MEMBER(bbc_state::video_ula_w)
 	else
 		m_screen->update_partial(vpos - 1);
 
-	logerror("setting videoULA %.4x to:%.4x   at :%d \n", data, offset, vpos);
+	//logerror("setting videoULA %.4x to:%.4x   at :%d \n", data, offset, vpos);
 
 	switch (offset & 0x01)
 	{
@@ -278,6 +278,14 @@ WRITE_LINE_MEMBER(bbc_state::bbc_de_changed)
 		m_teletext_latch |= 0x80;
 	else
 		m_teletext_latch &= ~0x80;
+}
+
+uint8_t bbc_state::bus_video_data()
+{
+	int hpos = m_screen->hpos();
+	int vpos = m_screen->vpos();
+
+	return m_video_ram[calculate_video_address(hpos, vpos)];
 }
 
 /**** BBC B+/Master Shadow Ram change ****/

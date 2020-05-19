@@ -48,8 +48,8 @@ public:
 	void init_razmataz();
 	void init_zaxxonj();
 
-	DECLARE_CUSTOM_INPUT_MEMBER(razmataz_dial_r);
-	DECLARE_CUSTOM_INPUT_MEMBER(zaxxon_coin_r);
+	template <int Num> DECLARE_CUSTOM_INPUT_MEMBER(razmataz_dial_r);
+	template <int Num> DECLARE_READ_LINE_MEMBER(zaxxon_coin_r);
 	DECLARE_INPUT_CHANGED_MEMBER(service_switch);
 	DECLARE_INPUT_CHANGED_MEMBER(zaxxon_coin_inserted);
 
@@ -119,12 +119,12 @@ private:
 	uint32_t screen_update_razmataz(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	uint32_t screen_update_congo(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	DECLARE_WRITE_LINE_MEMBER(vblank_int);
-	DECLARE_WRITE8_MEMBER(zaxxon_sound_a_w);
-	DECLARE_WRITE8_MEMBER(zaxxon_sound_b_w);
-	DECLARE_WRITE8_MEMBER(zaxxon_sound_c_w);
-	DECLARE_WRITE8_MEMBER(congo_sound_b_w);
-	DECLARE_WRITE8_MEMBER(congo_sound_c_w);
-	void video_start_common(tilemap_get_info_delegate fg_tile_info);
+	void zaxxon_sound_a_w(uint8_t data);
+	void zaxxon_sound_b_w(uint8_t data);
+	void zaxxon_sound_c_w(uint8_t data);
+	void congo_sound_b_w(uint8_t data);
+	void congo_sound_c_w(uint8_t data);
+	void video_start_common(tilemap_get_info_delegate &&fg_tile_info);
 	void draw_background(bitmap_ind16 &bitmap, const rectangle &cliprect, int skew);
 	inline int find_minimum_y(uint8_t value, int flip);
 	inline int find_minimum_x(uint8_t value, int flip);

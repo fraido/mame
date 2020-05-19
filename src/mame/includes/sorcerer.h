@@ -67,8 +67,12 @@ public:
 		, m_floppy21(*this, "fdc2:1")
 		, m_floppy30(*this, "fdc3:0")
 		, m_floppy31(*this, "fdc3:1")
+		, m_floppy32(*this, "fdc3:2")
+		, m_floppy33(*this, "fdc3:3")
 		, m_floppy40(*this, "fdc4:0")
 		, m_floppy41(*this, "fdc4:1")
+		, m_floppy42(*this, "fdc4:2")
+		, m_floppy43(*this, "fdc4:3")
 		, m_iop_config(*this, "CONFIG")
 		, m_iop_vs(*this, "VS")
 		, m_iop_x(*this, "X.%u", 0)
@@ -109,10 +113,10 @@ private:
 	DECLARE_SNAPSHOT_LOAD_MEMBER(snapshot_cb);
 	DECLARE_QUICKLOAD_LOAD_MEMBER(quickload_cb);
 	DECLARE_WRITE_LINE_MEMBER(busreq_w);
-	DECLARE_READ8_MEMBER(memory_read_byte);
-	DECLARE_WRITE8_MEMBER(memory_write_byte);
-	DECLARE_READ8_MEMBER(io_read_byte);
-	DECLARE_WRITE8_MEMBER(io_write_byte);
+	uint8_t memory_read_byte(offs_t offset);
+	void memory_write_byte(offs_t offset, uint8_t data);
+	uint8_t io_read_byte(offs_t offset);
+	void io_write_byte(offs_t offset, uint8_t data);
 	void machine_start_common(u16 endmem);
 	uint32_t screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 
@@ -159,8 +163,12 @@ private:
 	optional_device<floppy_connector> m_floppy21;
 	optional_device<floppy_connector> m_floppy30;
 	optional_device<floppy_connector> m_floppy31;
+	optional_device<floppy_connector> m_floppy32;
+	optional_device<floppy_connector> m_floppy33;
 	optional_device<floppy_connector> m_floppy40;
 	optional_device<floppy_connector> m_floppy41;
+	optional_device<floppy_connector> m_floppy42;
+	optional_device<floppy_connector> m_floppy43;
 	required_ioport m_iop_config;
 	required_ioport m_iop_vs;
 	required_ioport_array<16> m_iop_x;

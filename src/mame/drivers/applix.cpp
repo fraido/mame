@@ -117,9 +117,9 @@ private:
 	DECLARE_WRITE16_MEMBER(analog_latch_w);
 	DECLARE_WRITE16_MEMBER(dac_latch_w);
 	DECLARE_WRITE16_MEMBER(video_latch_w);
-	DECLARE_READ8_MEMBER(applix_pb_r);
-	DECLARE_WRITE8_MEMBER(applix_pa_w);
-	DECLARE_WRITE8_MEMBER(applix_pb_w);
+	uint8_t applix_pb_r();
+	void applix_pa_w(uint8_t data);
+	void applix_pb_w(uint8_t data);
 	DECLARE_WRITE_LINE_MEMBER(vsync_w);
 	DECLARE_READ8_MEMBER(port00_r);
 	DECLARE_READ8_MEMBER(port08_r);
@@ -139,12 +139,12 @@ private:
 	DECLARE_FLOPPY_FORMATS(floppy_formats);
 	DECLARE_READ8_MEMBER( internal_data_read );
 	DECLARE_WRITE8_MEMBER( internal_data_write );
-	DECLARE_READ8_MEMBER( p1_read );
-	DECLARE_WRITE8_MEMBER( p1_write );
-	DECLARE_READ8_MEMBER( p2_read );
-	DECLARE_WRITE8_MEMBER( p2_write );
-	DECLARE_READ8_MEMBER( p3_read );
-	DECLARE_WRITE8_MEMBER( p3_write );
+	uint8_t p1_read();
+	void p1_write(uint8_t data);
+	uint8_t p2_read();
+	void p2_write(uint8_t data);
+	uint8_t p3_read();
+	void p3_write(uint8_t data);
 	TIMER_DEVICE_CALLBACK_MEMBER(cass_timer);
 
 	MC6845_UPDATE_ROW(crtc_update_row);
@@ -279,7 +279,7 @@ READ16_MEMBER( applix_state::applix_inputs_r )
 	return m_io_dsw->read() | m_cass_data[2];
 }
 
-READ8_MEMBER( applix_state::applix_pb_r )
+uint8_t applix_state::applix_pb_r()
 {
 	return m_pb;
 }
@@ -294,7 +294,7 @@ d5 = /(out) clear cass IRQ and output line
 d6 = /(out) reset keyboard by pulling kbd clock low
 d7 = /(out) reset keyboard flipflop
 */
-WRITE8_MEMBER( applix_state::applix_pa_w )
+void applix_state::applix_pa_w(uint8_t data)
 {
 	// Reset flipflop counter
 	if (!BIT(data, 7))
@@ -325,7 +325,7 @@ WRITE8_MEMBER( applix_state::applix_pa_w )
 d0-6 = user
 d7   = square wave output for cassette IRQ
 */
-WRITE8_MEMBER( applix_state::applix_pb_w )
+void applix_state::applix_pb_w(uint8_t data)
 {
 	// low-to-high of PB7 when writing cassette - CLK on IC49
 	if (!BIT(m_pb, 7) && BIT(data, 7))
@@ -473,7 +473,7 @@ void applix_state::applix_mem(address_map &map)
 	map(0x700180, 0x700180).mirror(0x7c).rw(m_crtc, FUNC(mc6845_device::status_r), FUNC(mc6845_device::address_w)).cswidth(16);
 	map(0x700182, 0x700182).mirror(0x7c).rw(m_crtc, FUNC(mc6845_device::register_r), FUNC(mc6845_device::register_w)).cswidth(16);
 	map(0xffffc0, 0xffffc1).rw(FUNC(applix_state::fdc_data_r), FUNC(applix_state::fdc_data_w));
-	//AM_RANGE(0xffffc2, 0xffffc3) AM_READWRITE(fdc_int_r,fdc_int_w) // optional
+	//map(0xffffc2, 0xffffc3).rw(FUNC(applix_state::fdc_int_r) , FUNC(applix_state::fdc_int_w)); // optional
 	map(0xffffc8, 0xffffcd).r(FUNC(applix_state::fdc_stat_r));
 	map(0xffffd0, 0xffffd1).w(FUNC(applix_state::fdc_cmd_w));
 	//600000, 6FFFFF  io ports and latches
@@ -792,6 +792,8 @@ void applix_state::video_start()
 
 MC6845_UPDATE_ROW( applix_state::crtc_update_row )
 {
+	if (!de)
+		return;
 	// The display is bitmapped. 2 modes are supported here, 320x200x16 and 640x200x4.
 	// There is a monochrome mode, but no info found as yet.
 	// The 6845 cursor signal is not used at all.
@@ -896,8 +898,8 @@ void applix_state::applix(machine_config &config)
 	m_crtc->set_screen("screen");
 	m_crtc->set_show_border_area(true);
 	m_crtc->set_char_width(8);
-	m_crtc->set_update_row_callback(FUNC(applix_state::crtc_update_row), this);
-	m_crtc->set_begin_update_callback(FUNC(applix_state::crtc_update_border), this);
+	m_crtc->set_update_row_callback(FUNC(applix_state::crtc_update_row));
+	m_crtc->set_begin_update_callback(FUNC(applix_state::crtc_update_border));
 	m_crtc->out_vsync_callback().set(FUNC(applix_state::vsync_w));
 
 	VIA6522(config, m_via, 30_MHz_XTAL / 4 / 10); // VIA uses 68000 E clock
@@ -943,6 +945,8 @@ void applix_state::applix(machine_config &config)
 	serial_b.rxd_handler().set("scc", FUNC(scc8530_device::rxb_w));
 	serial_b.cts_handler().set("scc", FUNC(scc8530_device::ctsb_w));
 	serial_b.cts_handler().set("scc", FUNC(scc8530_device::dcdb_w));
+
+	SOFTWARE_LIST(config, "flop_list").set_original("applix_flop");
 }
 
 /* ROM definition */
@@ -1111,31 +1115,31 @@ WRITE8_MEMBER( applix_state::internal_data_write )
 }
 
 
-READ8_MEMBER( applix_state::p1_read )
+uint8_t applix_state::p1_read()
 {
 	return m_p1 & m_p1_data;
 }
 
 
-WRITE8_MEMBER( applix_state::p1_write )
+void applix_state::p1_write(uint8_t data)
 {
 	m_p1 = data;
 }
 
 
-READ8_MEMBER( applix_state::p2_read )
+uint8_t applix_state::p2_read()
 {
 	return m_p2;
 }
 
 
-WRITE8_MEMBER( applix_state::p2_write )
+void applix_state::p2_write(uint8_t data)
 {
 	m_p2 = data;
 }
 
 
-READ8_MEMBER( applix_state::p3_read )
+uint8_t applix_state::p3_read()
 {
 	uint8_t data = m_p3;
 
@@ -1151,7 +1155,7 @@ READ8_MEMBER( applix_state::p3_read )
 }
 
 
-WRITE8_MEMBER( applix_state::p3_write )
+void applix_state::p3_write(uint8_t data)
 {
 	m_p3 = data;
 }

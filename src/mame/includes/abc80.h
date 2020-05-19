@@ -71,7 +71,7 @@ public:
 		m_pio(*this, Z80PIO_TAG),
 		m_csg(*this, SN76477_TAG),
 		m_cassette(*this, "cassette"),
-		m_bus(*this, ABCBUS_TAG),
+		m_bus(*this, "bus"),
 		m_kb(*this, ABC80_KEYBOARD_TAG),
 		m_ram(*this, RAM_TAG),
 		m_rs232(*this, RS232_TAG),
@@ -142,9 +142,9 @@ public:
 
 	DECLARE_WRITE_LINE_MEMBER( vco_voltage_w );
 
-	DECLARE_READ8_MEMBER( pio_pa_r );
-	DECLARE_READ8_MEMBER( pio_pb_r );
-	DECLARE_WRITE8_MEMBER( pio_pb_w );
+	uint8_t pio_pa_r();
+	uint8_t pio_pb_r();
+	void pio_pb_w(uint8_t data);
 
 	DECLARE_WRITE_LINE_MEMBER( keydown_w );
 	void kbd_w(u8 data);

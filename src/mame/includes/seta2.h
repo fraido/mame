@@ -1,5 +1,5 @@
 // license:BSD-3-Clause
-// copyright-holders:Luca Elia
+// copyright-holders:Luca Elia, David Haywood
 #ifndef MAME_INCLUDES_SETA2_H
 #define MAME_INCLUDES_SETA2_H
 
@@ -68,7 +68,7 @@ protected:
 	DECLARE_READ8_MEMBER(pzlbowl_coins_r);
 	DECLARE_WRITE8_MEMBER(pzlbowl_coin_counter_w);
 
-	DECLARE_WRITE16_MEMBER(reelquak_leds_w);
+	void reelquak_leds_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
 	DECLARE_WRITE8_MEMBER(reelquak_coin_w);
 
 	DECLARE_WRITE8_MEMBER(samshoot_coin_w);
@@ -77,13 +77,16 @@ protected:
 	DECLARE_WRITE8_MEMBER(telpacfl_lamp2_w);
 	DECLARE_WRITE8_MEMBER(telpacfl_lockout_w);
 
-	DECLARE_READ16_MEMBER(gundamex_eeprom_r);
-	DECLARE_WRITE16_MEMBER(gundamex_eeprom_w);
+	uint16_t gundamex_eeprom_r();
+	void gundamex_eeprom_w(uint16_t data);
 
 	DECLARE_WRITE16_MEMBER(vregs_w);
 	DECLARE_READ16_MEMBER(spriteram_r);
 	DECLARE_WRITE16_MEMBER(spriteram_w);
 
+	int calculate_global_xoffset(int nozoom_fixedpalette_fixedposition);
+	int calculate_global_yoffset(int nozoom_fixedpalette_fixedposition);
+	void draw_sprites_line(bitmap_ind16 &bitmap, const rectangle &cliprect, int scanline, int realscanline, int xoffset, uint32_t xzoom, bool xzoominverted);
 	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
 
 	uint32_t screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
@@ -135,7 +138,7 @@ protected:
 	std::unique_ptr<uint16_t[]> m_private_spriteram;
 
 private:
-	void drawgfx_line(bitmap_ind16 &bitmap, const rectangle &cliprect, int gfx, const uint8_t* const addr, const uint32_t realcolor, int flipx, int flipy, int base_sx, int shadow, int realline, int line, int opaque);
+	void drawgfx_line(bitmap_ind16 &bitmap, const rectangle &cliprect, int gfx, const uint8_t* const addr, const uint32_t realcolor, int flipx, int flipy, int base_sx, uint32_t xzoom, int shadow, int screenline, int line, int opaque);
 	inline void get_tile(uint16_t* spriteram, int is_16x16, int x, int y, int page, int& code, int& attr, int& flipx, int& flipy, int& color);
 
 	std::unique_ptr<uint32_t[]> m_realtilenumber;

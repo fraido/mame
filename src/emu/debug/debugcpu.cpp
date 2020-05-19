@@ -53,7 +53,7 @@ debugger_cpu::debugger_cpu(running_machine &machine)
 	m_tempvar = make_unique_clear<u64[]>(NUM_TEMP_VARIABLES);
 
 	/* create a global symbol table */
-	m_symtable = std::make_unique<symbol_table>(&m_machine);
+	m_symtable = std::make_unique<symbol_table>();
 
 	// configure our base memory accessors
 	configure_memory(*m_symtable);
@@ -62,8 +62,7 @@ debugger_cpu::debugger_cpu(running_machine &machine)
 	m_symtable->add("wpaddr", symbol_table::READ_ONLY, &m_wpaddr);
 	m_symtable->add("wpdata", symbol_table::READ_ONLY, &m_wpdata);
 
-	using namespace std::placeholders;
-	m_symtable->add("cpunum", std::bind(&debugger_cpu::get_cpunum, this, _1));
+	m_symtable->add("cpunum", std::bind(&debugger_cpu::get_cpunum, this));
 
 	screen_device_iterator screen_iterator = screen_device_iterator(m_machine.root_device());
 	screen_device_iterator::auto_iterator iter = screen_iterator.begin();
@@ -71,18 +70,20 @@ debugger_cpu::debugger_cpu(running_machine &machine)
 
 	if (count == 1)
 	{
-		m_symtable->add("beamx", std::bind(&debugger_cpu::get_beamx, this, _1, iter.current()));
-		m_symtable->add("beamy", std::bind(&debugger_cpu::get_beamy, this, _1, iter.current()));
-		m_symtable->add("frame", std::bind(&debugger_cpu::get_frame, this, _1, iter.current()));
+		screen_device &screen = *iter.current();
+		m_symtable->add("beamx", [&screen]() { return screen.hpos(); });
+		m_symtable->add("beamy", [&screen]() { return screen.vpos(); });
+		m_symtable->add("frame", [&screen]() { return screen.frame_number(); });
 		iter.current()->register_vblank_callback(vblank_state_delegate(&debugger_cpu::on_vblank, this));
 	}
 	else if (count > 1)
 	{
 		for (uint32_t i = 0; i < count; i++, iter++)
 		{
-			m_symtable->add(string_format("beamx%d", i).c_str(), std::bind(&debugger_cpu::get_beamx, this, _1, iter.current()));
-			m_symtable->add(string_format("beamy%d", i).c_str(), std::bind(&debugger_cpu::get_beamy, this, _1, iter.current()));
-			m_symtable->add(string_format("frame%d", i).c_str(), std::bind(&debugger_cpu::get_frame, this, _1, iter.current()));
+			screen_device &screen = *iter.current();
+			m_symtable->add(string_format("beamx%d", i).c_str(), [&screen]() { return screen.hpos(); });
+			m_symtable->add(string_format("beamy%d", i).c_str(), [&screen]() { return screen.vpos(); });
+			m_symtable->add(string_format("frame%d", i).c_str(), [&screen]() { return screen.frame_number(); });
 			iter.current()->register_vblank_callback(vblank_state_delegate(&debugger_cpu::on_vblank, this));
 		}
 	}
@@ -111,10 +112,9 @@ void debugger_cpu::configure_memory(symbol_table &table)
 {
 	using namespace std::placeholders;
 	table.configure_memory(
-		&m_machine,
-		std::bind(&debugger_cpu::expression_validate, this, _1, _2, _3),
-		std::bind(&debugger_cpu::expression_read_memory, this, _1, _2, _3, _4, _5, _6),
-		std::bind(&debugger_cpu::expression_write_memory, this, _1, _2, _3, _4, _5, _6, _7));
+		std::bind(&debugger_cpu::expression_validate, this, _1, _2),
+		std::bind(&debugger_cpu::expression_read_memory, this, _1, _2, _3, _4, _5),
+		std::bind(&debugger_cpu::expression_write_memory, this, _1, _2, _3, _4, _5, _6));
 }
 
 /*-------------------------------------------------
@@ -134,18 +134,18 @@ void debugger_cpu::flush_traces()
 
 
 
-/***************************************************************************
-    SYMBOL TABLE INTERFACES
-***************************************************************************/
+//**************************************************************************
+//  SYMBOL TABLE INTERFACES
+//**************************************************************************
 
-/*-------------------------------------------------
-    get_visible_symtable - return the
-    locally-visible symbol table
--------------------------------------------------*/
+//-------------------------------------------------
+//  visible_symtable - return the locally-visible
+//  symbol table
+//-------------------------------------------------
 
-symbol_table* debugger_cpu::get_visible_symtable()
+symbol_table &debugger_cpu::visible_symtable()
 {
-	return &m_visiblecpu->debug()->symtable();
+	return m_visiblecpu->debug()->symtable();
 }
 
 
@@ -204,7 +204,7 @@ bool debugger_cpu::comment_save()
 		if (found_comments)
 		{
 			emu_file file(m_machine.options().comment_directory(), OPEN_FLAG_WRITE | OPEN_FLAG_CREATE | OPEN_FLAG_CREATE_PATHS);
-			osd_file::error filerr = file.open(m_machine.basename(), ".cmt");
+			osd_file::error filerr = file.open(m_machine.basename() + ".cmt");
 			if (filerr == osd_file::error::NONE)
 			{
 				root->write(file);
@@ -230,7 +230,7 @@ bool debugger_cpu::comment_load(bool is_inline)
 {
 	// open the file
 	emu_file file(m_machine.options().comment_directory(), OPEN_FLAG_READ);
-	osd_file::error filerr = file.open(m_machine.basename(), ".cmt");
+	osd_file::error filerr = file.open(m_machine.basename() + ".cmt");
 
 	// if an error, just return false
 	if (filerr != osd_file::error::NONE)
@@ -630,7 +630,7 @@ device_t* debugger_cpu::expression_get_device(const char *tag)
     space
 -------------------------------------------------*/
 
-u64 debugger_cpu::expression_read_memory(void *param, const char *name, expression_space spacenum, u32 address, int size, bool disable_se)
+u64 debugger_cpu::expression_read_memory(const char *name, expression_space spacenum, u32 address, int size, bool disable_se)
 {
 	switch (spacenum)
 	{
@@ -836,7 +836,7 @@ u64 debugger_cpu::expression_read_memory_region(const char *rgntag, offs_t addre
     space
 -------------------------------------------------*/
 
-void debugger_cpu::expression_write_memory(void *param, const char *name, expression_space spacenum, u32 address, int size, u64 data, bool disable_se)
+void debugger_cpu::expression_write_memory(const char *name, expression_space spacenum, u32 address, int size, u64 data, bool disable_se)
 {
 	device_t *device = nullptr;
 	device_memory_interface *memory;
@@ -1040,7 +1040,7 @@ void debugger_cpu::expression_write_memory_region(const char *rgntag, offs_t add
     appropriate name
 -------------------------------------------------*/
 
-expression_error::error_code debugger_cpu::expression_validate(void *param, const char *name, expression_space space)
+expression_error::error_code debugger_cpu::expression_validate(const char *name, expression_space space)
 {
 	device_t *device = nullptr;
 	device_memory_interface *memory;
@@ -1120,51 +1120,25 @@ expression_error::error_code debugger_cpu::expression_validate(void *param, cons
 
 
 
-/***************************************************************************
-    VARIABLE GETTERS/SETTERS
-***************************************************************************/
+//**************************************************************************
+//  VARIABLE GETTERS/SETTERS
+//**************************************************************************
 
-/*-------------------------------------------------
-    get_beamx - get beam horizontal position
--------------------------------------------------*/
+//-------------------------------------------------
+//  get_cpunum - getter callback for the
+//  'cpunum' symbol
+//-------------------------------------------------
 
-u64 debugger_cpu::get_beamx(symbol_table &table, screen_device *screen)
-{
-	return (screen != nullptr) ? screen->hpos() : 0;
-}
-
-
-/*-------------------------------------------------
-    get_beamy - get beam vertical position
--------------------------------------------------*/
-
-u64 debugger_cpu::get_beamy(symbol_table &table, screen_device *screen)
-{
-	return (screen != nullptr) ? screen->vpos() : 0;
-}
-
-
-/*-------------------------------------------------
-    get_frame - get current frame number
--------------------------------------------------*/
-
-u64 debugger_cpu::get_frame(symbol_table &table, screen_device *screen)
-{
-	return (screen != nullptr) ? screen->frame_number() : 0;
-}
-
-
-/*-------------------------------------------------
-    get_cpunum - getter callback for the
-    'cpunum' symbol
--------------------------------------------------*/
-
-u64 debugger_cpu::get_cpunum(symbol_table &table)
+u64 debugger_cpu::get_cpunum()
 {
 	execute_interface_iterator iter(m_machine.root_device());
 	return iter.indexof(m_visiblecpu->execute());
 }
 
+
+//**************************************************************************
+//  EXECUTION HOOKS
+//**************************************************************************
 
 void debugger_cpu::start_hook(device_t *device, bool stop_on_vblank)
 {
@@ -1172,8 +1146,15 @@ void debugger_cpu::start_hook(device_t *device, bool stop_on_vblank)
 	assert(m_livecpu == nullptr);
 	m_livecpu = device;
 
+	// can't stop on a device without a state interface
+	if (m_execution_state == exec_state::STOPPED && dynamic_cast<device_state_interface *>(device) == nullptr)
+	{
+		if (m_stop_when_not_device == nullptr)
+			m_stop_when_not_device = device;
+		m_execution_state = exec_state::RUNNING;
+	}
 	// if we're a new device, stop now
-	if (m_stop_when_not_device != nullptr && m_stop_when_not_device != device)
+	else if (m_stop_when_not_device != nullptr && m_stop_when_not_device != device && device->debug()->observing())
 	{
 		m_stop_when_not_device = nullptr;
 		m_execution_state = exec_state::STOPPED;
@@ -1189,7 +1170,7 @@ void debugger_cpu::start_hook(device_t *device, bool stop_on_vblank)
 			m_machine.debug_view().flush_osd_updates();
 			m_last_periodic_update_time = osd_ticks();
 		}
-		else if (device == m_breakcpu)
+		if (device == m_breakcpu)
 		{   // check for pending breaks
 			m_execution_state = exec_state::STOPPED;
 			m_breakcpu = nullptr;
@@ -1209,13 +1190,23 @@ void debugger_cpu::start_hook(device_t *device, bool stop_on_vblank)
 		}
 		// check for debug keypresses
 		if (m_machine.ui_input().pressed(IPT_UI_DEBUG_BREAK))
+		{
+			m_visiblecpu->debug()->ignore(false);
 			m_visiblecpu->debug()->halt_on_next_instruction("User-initiated break\n");
+		}
 	}
 }
 
 void debugger_cpu::stop_hook(device_t *device)
 {
 	assert(m_livecpu == device);
+
+	// if we are supposed to be stopped at this point (most likely because of a watchpoint), keep going until this CPU is live again
+	if (m_execution_state == exec_state::STOPPED)
+	{
+		m_breakcpu = device;
+		m_execution_state = exec_state::RUNNING;
+	}
 
 	// clear the live CPU
 	m_livecpu = nullptr;
@@ -1285,7 +1276,7 @@ device_debug::device_debug(device_t &device)
 	, m_state(nullptr)
 	, m_disasm(nullptr)
 	, m_flags(0)
-	, m_symtable(&device, device.machine().debugger().cpu().get_global_symtable())
+	, m_symtable(&device.machine().debugger().cpu().global_symtable())
 	, m_instrhook(nullptr)
 	, m_stepaddr(0)
 	, m_stepsleft(0)
@@ -1297,8 +1288,8 @@ device_debug::device_debug(device_t &device)
 	, m_total_cycles(0)
 	, m_last_total_cycles(0)
 	, m_pc_history_index(0)
-	, m_bplist(nullptr)
-	, m_rplist(nullptr)
+	, m_bplist()
+	, m_rplist()
 	, m_triggered_breakpoint(nullptr)
 	, m_triggered_watchpoint(nullptr)
 	, m_trace(nullptr)
@@ -1338,9 +1329,9 @@ device_debug::device_debug(device_t &device)
 		// add global symbol for cycles and totalcycles
 		if (m_exec != nullptr)
 		{
-			m_symtable.add("cycles", get_cycles);
-			m_symtable.add("totalcycles", get_totalcycles);
-			m_symtable.add("lastinstructioncycles", get_lastinstructioncycles);
+			m_symtable.add("cycles", [this]() { return m_exec->cycles_remaining(); });
+			m_symtable.add("totalcycles", symbol_table::READ_ONLY, &m_total_cycles);
+			m_symtable.add("lastinstructioncycles", [this]() { return m_total_cycles - m_last_total_cycles; });
 		}
 
 		// add entries to enable/disable unmap reporting for each space
@@ -1349,23 +1340,23 @@ device_debug::device_debug(device_t &device)
 			if (m_memory->has_space(AS_PROGRAM))
 				m_symtable.add(
 						"logunmap",
-						[&space = m_memory->space(AS_PROGRAM)] (symbol_table &table) { return space.log_unmap(); },
-						[&space = m_memory->space(AS_PROGRAM)] (symbol_table &table, u64 value) { return space.set_log_unmap(bool(value)); });
+						[&space = m_memory->space(AS_PROGRAM)] () { return space.log_unmap(); },
+						[&space = m_memory->space(AS_PROGRAM)] (u64 value) { return space.set_log_unmap(bool(value)); });
 			if (m_memory->has_space(AS_DATA))
 				m_symtable.add(
 						"logunmap",
-						[&space = m_memory->space(AS_DATA)] (symbol_table &table) { return space.log_unmap(); },
-						[&space = m_memory->space(AS_DATA)] (symbol_table &table, u64 value) { return space.set_log_unmap(bool(value)); });
+						[&space = m_memory->space(AS_DATA)] () { return space.log_unmap(); },
+						[&space = m_memory->space(AS_DATA)] (u64 value) { return space.set_log_unmap(bool(value)); });
 			if (m_memory->has_space(AS_IO))
 				m_symtable.add(
 						"logunmap",
-						[&space = m_memory->space(AS_IO)] (symbol_table &table) { return space.log_unmap(); },
-						[&space = m_memory->space(AS_IO)] (symbol_table &table, u64 value) { return space.set_log_unmap(bool(value)); });
+						[&space = m_memory->space(AS_IO)] () { return space.log_unmap(); },
+						[&space = m_memory->space(AS_IO)] (u64 value) { return space.set_log_unmap(bool(value)); });
 			if (m_memory->has_space(AS_OPCODES))
 				m_symtable.add(
 						"logunmap",
-						[&space = m_memory->space(AS_OPCODES)] (symbol_table &table) { return space.log_unmap(); },
-						[&space = m_memory->space(AS_OPCODES)] (symbol_table &table, u64 value) { return space.set_log_unmap(bool(value)); });
+						[&space = m_memory->space(AS_OPCODES)] () { return space.log_unmap(); },
+						[&space = m_memory->space(AS_OPCODES)] (u64 value) { return space.set_log_unmap(bool(value)); });
 		}
 
 		// add all registers into it
@@ -1379,8 +1370,8 @@ device_debug::device_debug(device_t &device)
 				strmakelower(tempstr.assign(entry->symbol()));
 				m_symtable.add(
 						tempstr.c_str(),
-						std::bind(&device_debug::get_state, _1, entry->index()),
-						entry->writeable() ? std::bind(&device_debug::set_state, _1, entry->index(), _2) : symbol_table::setter_func(nullptr),
+						std::bind(&device_state_interface::state_int, m_state, entry->index()),
+						entry->writeable() ? std::bind(&device_state_interface::set_state_int, m_state, entry->index(), _1) : symbol_table::setter_func(nullptr),
 						entry->format_string());
 			}
 		}
@@ -1393,7 +1384,7 @@ device_debug::device_debug(device_t &device)
 
 		// if no curpc, add one
 		if (m_state && !m_symtable.find("curpc"))
-			m_symtable.add("curpc", get_current_pc);
+			m_symtable.add("curpc", std::bind(&device_state_interface::pcbase, m_state));
 	}
 
 	// set up trace
@@ -1518,9 +1509,25 @@ void device_debug::exception_hook(int exception)
 	// see if this matches an exception breakpoint
 	if ((m_flags & DEBUG_FLAG_STOP_EXCEPTION) != 0 && (m_stopexception == -1 || m_stopexception == exception))
 	{
-		m_device.machine().debugger().cpu().set_execution_stopped();
-		m_device.machine().debugger().console().printf("Stopped on exception (CPU '%s', exception %d)\n", m_device.tag(), exception);
-		compute_debug_flags();
+		bool matched = true;
+		if (m_exception_condition && !m_exception_condition->is_empty())
+		{
+			try
+			{
+				matched = m_exception_condition->execute();
+			}
+			catch (expression_error &)
+			{
+				return;
+			}
+		}
+
+		if (matched)
+		{
+			m_device.machine().debugger().cpu().set_execution_stopped();
+			m_device.machine().debugger().console().printf("Stopped on exception (CPU '%s', exception %d, PC=%X)\n", m_device.tag(), exception, m_state->pcbase());
+			compute_debug_flags();
+		}
 	}
 }
 
@@ -1532,18 +1539,18 @@ void device_debug::exception_hook(int exception)
 
 void device_debug::privilege_hook()
 {
-	bool matched = 1;
-
 	if ((m_flags & DEBUG_FLAG_STOP_PRIVILEGE) != 0)
 	{
+		bool matched = true;
 		if (m_privilege_condition && !m_privilege_condition->is_empty())
 		{
 			try
 			{
 				matched = m_privilege_condition->execute();
 			}
-			catch (...)
+			catch (expression_error &)
 			{
+				return;
 			}
 		}
 
@@ -1866,12 +1873,13 @@ void device_debug::go_next_device()
 //  exception fires on the visible CPU
 //-------------------------------------------------
 
-void device_debug::go_exception(int exception)
+void device_debug::go_exception(int exception, const char *condition)
 {
 	assert(m_exec != nullptr);
 
 	m_device.machine().rewind_invalidate();
 	m_stopexception = exception;
+	m_exception_condition = std::make_unique<parsed_expression>(m_symtable, condition);
 	m_flags |= DEBUG_FLAG_STOP_EXCEPTION;
 	m_device.machine().debugger().cpu().set_execution_running();
 }
@@ -1902,7 +1910,7 @@ void device_debug::go_privilege(const char *condition)
 {
 	assert(m_exec != nullptr);
 	m_device.machine().rewind_invalidate();
-	m_privilege_condition = std::make_unique<parsed_expression>(&m_symtable, condition);
+	m_privilege_condition = std::make_unique<parsed_expression>(m_symtable, condition);
 	m_flags |= DEBUG_FLAG_STOP_PRIVILEGE;
 	m_device.machine().debugger().cpu().set_execution_running();
 }
@@ -1922,23 +1930,33 @@ void device_debug::halt_on_next_instruction_impl(util::format_argument_pack<std:
 }
 
 //-------------------------------------------------
+//  breakpoint_find - return a breakpoint at the
+//  given address, or nullptr if none exists there
+//-------------------------------------------------
+
+const device_debug::breakpoint *device_debug::breakpoint_find(offs_t address) const
+{
+	for (const breakpoint &bp : m_bplist)
+		if (bp.address() == address)
+			return &bp;
+
+	return nullptr;
+}
+
+//-------------------------------------------------
 //  breakpoint_set - set a new breakpoint,
 //  returning its index
 //-------------------------------------------------
 
 int device_debug::breakpoint_set(offs_t address, const char *condition, const char *action)
 {
-	// allocate a new one
+	// allocate a new one and hook it into our list
 	u32 id = m_device.machine().debugger().cpu().get_breakpoint_index();
-	breakpoint *bp = auto_alloc(m_device.machine(), breakpoint(this, m_symtable, id, address, condition, action));
-
-	// hook it into our list
-	bp->m_next = m_bplist;
-	m_bplist = bp;
+	m_bplist.emplace_front(this, m_symtable, id, address, condition, action);
 
 	// update the flags and return the index
 	breakpoint_update_flags();
-	return bp->m_index;
+	return m_bplist.front().m_index;
 }
 
 
@@ -1950,12 +1968,10 @@ int device_debug::breakpoint_set(offs_t address, const char *condition, const ch
 bool device_debug::breakpoint_clear(int index)
 {
 	// scan the list to see if we own this breakpoint
-	for (breakpoint **bp = &m_bplist; *bp != nullptr; bp = &(*bp)->m_next)
-		if ((*bp)->m_index == index)
+	for (auto bbp = m_bplist.before_begin(); std::next(bbp) != m_bplist.end(); ++bbp)
+		if (std::next(bbp)->m_index == index)
 		{
-			breakpoint *deleteme = *bp;
-			*bp = deleteme->m_next;
-			auto_free(m_device.machine(), deleteme);
+			m_bplist.erase_after(bbp);
 			breakpoint_update_flags();
 			return true;
 		}
@@ -1971,9 +1987,9 @@ bool device_debug::breakpoint_clear(int index)
 
 void device_debug::breakpoint_clear_all()
 {
-	// clear the head until we run out
-	while (m_bplist != nullptr)
-		breakpoint_clear(m_bplist->index());
+	// clear the list
+	m_bplist.clear();
+	breakpoint_update_flags();
 }
 
 
@@ -1985,10 +2001,10 @@ void device_debug::breakpoint_clear_all()
 bool device_debug::breakpoint_enable(int index, bool enable)
 {
 	// scan the list to see if we own this breakpoint
-	for (breakpoint *bp = m_bplist; bp != nullptr; bp = bp->next())
-		if (bp->m_index == index)
+	for (breakpoint &bp : m_bplist)
+		if (bp.m_index == index)
 		{
-			bp->m_enabled = enable;
+			bp.m_enabled = enable;
 			breakpoint_update_flags();
 			return true;
 		}
@@ -2006,8 +2022,8 @@ bool device_debug::breakpoint_enable(int index, bool enable)
 void device_debug::breakpoint_enable_all(bool enable)
 {
 	// apply the enable to all breakpoints we own
-	for (breakpoint *bp = m_bplist; bp != nullptr; bp = bp->next())
-		breakpoint_enable(bp->index(), enable);
+	for (breakpoint &bp : m_bplist)
+		breakpoint_enable(bp.index(), enable);
 }
 
 
@@ -2107,15 +2123,11 @@ int device_debug::registerpoint_set(const char *condition, const char *action)
 {
 	// allocate a new one
 	u32 id = m_device.machine().debugger().cpu().get_registerpoint_index();
-	registerpoint *rp = auto_alloc(m_device.machine(), registerpoint(m_symtable, id, condition, action));
-
-	// hook it into our list
-	rp->m_next = m_rplist;
-	m_rplist = rp;
+	m_rplist.emplace_front(m_symtable, id, condition, action);
 
 	// update the flags and return the index
 	breakpoint_update_flags();
-	return rp->m_index;
+	return m_rplist.front().m_index;
 }
 
 
@@ -2127,12 +2139,10 @@ int device_debug::registerpoint_set(const char *condition, const char *action)
 bool device_debug::registerpoint_clear(int index)
 {
 	// scan the list to see if we own this registerpoint
-	for (registerpoint **rp = &m_rplist; *rp != nullptr; rp = &(*rp)->m_next)
-		if ((*rp)->m_index == index)
+	for (auto brp = m_rplist.before_begin(); std::next(brp) != m_rplist.end(); ++brp)
+		if (std::next(brp)->m_index == index)
 		{
-			registerpoint *deleteme = *rp;
-			*rp = deleteme->m_next;
-			auto_free(m_device.machine(), deleteme);
+			m_rplist.erase_after(brp);
 			breakpoint_update_flags();
 			return true;
 		}
@@ -2148,9 +2158,9 @@ bool device_debug::registerpoint_clear(int index)
 
 void device_debug::registerpoint_clear_all()
 {
-	// clear the head until we run out
-	while (m_rplist != nullptr)
-		registerpoint_clear(m_rplist->index());
+	// clear the list
+	m_rplist.clear();
+	breakpoint_update_flags();
 }
 
 
@@ -2162,10 +2172,10 @@ void device_debug::registerpoint_clear_all()
 bool device_debug::registerpoint_enable(int index, bool enable)
 {
 	// scan the list to see if we own this conditionpoint
-	for (registerpoint *rp = m_rplist; rp != nullptr; rp = rp->next())
-		if (rp->m_index == index)
+	for (registerpoint &rp : m_rplist)
+		if (rp.m_index == index)
 		{
-			rp->m_enabled = enable;
+			rp.m_enabled = enable;
 			breakpoint_update_flags();
 			return true;
 		}
@@ -2183,8 +2193,8 @@ bool device_debug::registerpoint_enable(int index, bool enable)
 void device_debug::registerpoint_enable_all(bool enable)
 {
 	// apply the enable to all registerpoints we own
-	for (registerpoint *rp = m_rplist; rp != nullptr; rp = rp->next())
-		registerpoint_enable(rp->index(), enable);
+	for (registerpoint &rp : m_rplist)
+		registerpoint_enable(rp.index(), enable);
 }
 
 
@@ -2506,8 +2516,8 @@ void device_debug::breakpoint_update_flags()
 {
 	// see if there are any enabled breakpoints
 	m_flags &= ~DEBUG_FLAG_LIVE_BP;
-	for (breakpoint *bp = m_bplist; bp != nullptr; bp = bp->m_next)
-		if (bp->m_enabled)
+	for (breakpoint &bp : m_bplist)
+		if (bp.m_enabled)
 		{
 			m_flags |= DEBUG_FLAG_LIVE_BP;
 			break;
@@ -2516,9 +2526,9 @@ void device_debug::breakpoint_update_flags()
 	if ( ! ( m_flags & DEBUG_FLAG_LIVE_BP ) )
 	{
 		// see if there are any enabled registerpoints
-		for (registerpoint *rp = m_rplist; rp != nullptr; rp = rp->m_next)
+		for (registerpoint &rp : m_rplist)
 		{
-			if (rp->m_enabled)
+			if (rp.m_enabled)
 			{
 				m_flags |= DEBUG_FLAG_LIVE_BP;
 			}
@@ -2541,43 +2551,43 @@ void device_debug::breakpoint_check(offs_t pc)
 	debugger_cpu& debugcpu = m_device.machine().debugger().cpu();
 
 	// see if we match
-	for (breakpoint *bp = m_bplist; bp != nullptr; bp = bp->m_next)
-		if (bp->hit(pc))
+	for (breakpoint &bp : m_bplist)
+		if (bp.hit(pc))
 		{
 			// halt in the debugger by default
 			debugcpu.set_execution_stopped();
 
 			// if we hit, evaluate the action
-			if (!bp->m_action.empty())
-				m_device.machine().debugger().console().execute_command(bp->m_action, false);
+			if (!bp.m_action.empty())
+				m_device.machine().debugger().console().execute_command(bp.m_action, false);
 
 			// print a notification, unless the action made us go again
 			if (debugcpu.is_stopped())
 			{
-				m_device.machine().debugger().console().printf("Stopped at breakpoint %X\n", bp->m_index);
-				m_triggered_breakpoint = bp;
+				m_device.machine().debugger().console().printf("Stopped at breakpoint %X\n", bp.m_index);
+				m_triggered_breakpoint = &bp;
 			}
 			break;
 		}
 
 	// see if we have any matching registerpoints
-	for (registerpoint *rp = m_rplist; rp != nullptr; rp = rp->m_next)
+	for (registerpoint &rp : m_rplist)
 	{
-		if (rp->hit())
+		if (rp.hit())
 		{
 			// halt in the debugger by default
 			debugcpu.set_execution_stopped();
 
 			// if we hit, evaluate the action
-			if (!rp->m_action.empty())
+			if (!rp.m_action.empty())
 			{
-				m_device.machine().debugger().console().execute_command(rp->m_action, false);
+				m_device.machine().debugger().console().execute_command(rp.m_action, false);
 			}
 
 			// print a notification, unless the action made us go again
 			if (debugcpu.is_stopped())
 			{
-				m_device.machine().debugger().console().printf("Stopped at registerpoint %X\n", rp->m_index);
+				m_device.machine().debugger().console().printf("Stopped at registerpoint %X\n", rp.m_index);
 			}
 			break;
 		}
@@ -2634,79 +2644,6 @@ void device_debug::hotspot_check(address_space &space, offs_t address)
 	}
 }
 
-//-------------------------------------------------
-//  get_current_pc - getter callback for a device's
-//  current instruction pointer
-//-------------------------------------------------
-
-u64 device_debug::get_current_pc(symbol_table &table)
-{
-	device_t *device = reinterpret_cast<device_t *>(table.globalref());
-	return device->state().pcbase();
-}
-
-
-//-------------------------------------------------
-//  get_cycles - getter callback for the
-//  'cycles' symbol
-//-------------------------------------------------
-
-u64 device_debug::get_cycles(symbol_table &table)
-{
-	device_t *device = reinterpret_cast<device_t *>(table.globalref());
-	return device->debug()->m_exec->cycles_remaining();
-}
-
-
-//-------------------------------------------------
-//  get_totalcycles - getter callback for the
-//  'totalcycles' symbol
-//-------------------------------------------------
-
-u64 device_debug::get_totalcycles(symbol_table &table)
-{
-	device_t *device = reinterpret_cast<device_t *>(table.globalref());
-	return device->debug()->m_total_cycles;
-}
-
-
-//-------------------------------------------------
-//  get_lastinstructioncycles - getter callback for the
-//  'lastinstructioncycles' symbol
-//-------------------------------------------------
-
-u64 device_debug::get_lastinstructioncycles(symbol_table &table)
-{
-	device_t *device = reinterpret_cast<device_t *>(table.globalref());
-	device_debug *debug = device->debug();
-	return debug->m_total_cycles - debug->m_last_total_cycles;
-}
-
-
-//-------------------------------------------------
-//  get_state - getter callback for a device's
-//  state symbols
-//-------------------------------------------------
-
-u64 device_debug::get_state(symbol_table &table, int index)
-{
-	device_t *device = reinterpret_cast<device_t *>(table.globalref());
-	return device->debug()->m_state->state_int(index);
-}
-
-
-//-------------------------------------------------
-//  set_state - setter callback for a device's
-//  state symbols
-//-------------------------------------------------
-
-void device_debug::set_state(symbol_table &table, int index, u64 value)
-{
-	device_t *device = reinterpret_cast<device_t *>(table.globalref());
-	device->debug()->m_state->set_state_int(index, value);
-}
-
-
 
 //**************************************************************************
 //  DEBUG BREAKPOINT
@@ -2723,11 +2660,10 @@ device_debug::breakpoint::breakpoint(device_debug* debugInterface,
 										const char *condition,
 										const char *action)
 	: m_debugInterface(debugInterface),
-		m_next(nullptr),
 		m_index(index),
 		m_enabled(true),
 		m_address(address),
-		m_condition(&symbols, (condition != nullptr) ? condition : "1"),
+		m_condition(symbols, (condition != nullptr) ? condition : "1"),
 		m_action((action != nullptr) ? action : "")
 {
 }
@@ -2791,7 +2727,7 @@ device_debug::watchpoint::watchpoint(device_debug* debugInterface,
 	  m_type(type),
 	  m_address(address & space.addrmask()),
 	  m_length(length),
-	  m_condition(&symbols, (condition != nullptr) ? condition : "1"),
+	  m_condition(symbols, (condition != nullptr) ? condition : "1"),
 	  m_action((action != nullptr) ? action : ""),
 	  m_installing(false)
 {
@@ -3054,6 +2990,7 @@ void device_debug::watchpoint::triggered(read_or_write type, offs_t address, u64
 	}
 
 	// halt in the debugger by default
+	bool was_stopped = debug.cpu().is_stopped();
 	debug.cpu().set_execution_stopped();
 
 	// evaluate the action
@@ -3063,19 +3000,28 @@ void device_debug::watchpoint::triggered(read_or_write type, offs_t address, u64
 	// print a notification, unless the action made us go again
 	if (debug.cpu().is_stopped())
 	{
-		offs_t pc = m_space.device().state().pcbase();
 		std::string buffer;
 
 		buffer = string_format(type == read_or_write::READ ?
-							   "Stopped at watchpoint %X reading %0*X from %08X (PC=%X)" :
-							   "Stopped at watchpoint %X writing %0*X to %08X (PC=%X)",
+							   "Stopped at watchpoint %X reading %0*X from %08X" :
+							   "Stopped at watchpoint %X writing %0*X to %08X",
 							   m_index,
 							   size * unit_size / 4,
 							   data,
-							   address,
-							   pc);
-		debug.console().printf("%s\n", buffer);
-		m_debugInterface->compute_debug_flags();
+							   address);
+
+		if (debug.cpu().live_cpu() == &m_space.device())
+		{
+			offs_t pc = m_space.device().state().pcbase();
+			debug.console().printf("%s (PC=%X)\n", buffer, pc);
+			m_debugInterface->compute_debug_flags();
+		}
+		else if (!was_stopped)
+		{
+			debug.console().printf("%s\n", buffer);
+			debug.cpu().set_execution_running();
+			debug.cpu().set_break_cpu(&m_space.device());
+		}
 		m_debugInterface->set_triggered_watchpoint(this);
 	}
 
@@ -3091,10 +3037,9 @@ void device_debug::watchpoint::triggered(read_or_write type, offs_t address, u64
 //-------------------------------------------------
 
 device_debug::registerpoint::registerpoint(symbol_table &symbols, int index, const char *condition, const char *action)
-	: m_next(nullptr),
-		m_index(index),
+	: m_index(index),
 		m_enabled(true),
-		m_condition(&symbols, (condition != nullptr) ? condition : "1"),
+		m_condition(symbols, (condition != nullptr) ? condition : "1"),
 		m_action((action != nullptr) ? action : "")
 {
 }

@@ -188,7 +188,7 @@ WRITE32_MEMBER(policetr_state::bsmt2000_data_w)
 }
 
 
-CUSTOM_INPUT_MEMBER(policetr_state::bsmt_status_r)
+READ_LINE_MEMBER(policetr_state::bsmt_status_r)
 {
 	return m_bsmt->read_status();
 }
@@ -323,7 +323,7 @@ static INPUT_PORTS_START( policetr )
 	PORT_BIT( 0x00100000, IP_ACTIVE_LOW, IPT_UNUSED )   /* /TILT (note 1) */
 	PORT_BIT( 0x00200000, IP_ACTIVE_LOW, IPT_SERVICE1 )
 	PORT_BIT( 0x00400000, IP_ACTIVE_LOW, IPT_UNUSED )   /* /SERVICE (note 1) */
-	PORT_BIT( 0x00800000, IP_ACTIVE_HIGH, IPT_CUSTOM )  PORT_CUSTOM_MEMBER(DEVICE_SELF, policetr_state, bsmt_status_r, nullptr)
+	PORT_BIT( 0x00800000, IP_ACTIVE_HIGH, IPT_CUSTOM )  PORT_READ_LINE_MEMBER(policetr_state, bsmt_status_r)
 	PORT_BIT( 0x01000000, IP_ACTIVE_LOW, IPT_BUTTON1 )  PORT_PLAYER(1)
 	PORT_BIT( 0x02000000, IP_ACTIVE_LOW, IPT_UNKNOWN )  /* /XSW2 (note 2) */
 	PORT_BIT( 0x04000000, IP_ACTIVE_LOW, IPT_BUTTON1 )  PORT_PLAYER(2)
@@ -531,7 +531,7 @@ ROM_START( policetr10 ) /* Rev 0.2 PCB with all chips dated 10/07/96, there is n
 	ROM_RELOAD(                    0x478000, 0x080000 )
 	ROM_LOAD( "u162_10-7-96.u162", 0x100000, 0x080000, CRC(e7e02312) SHA1(ac92b8615b18528820a40dad025173e9f24072bf) ) // labeled: U162   10/7/96
 	ROM_RELOAD(                    0x4f8000, 0x080000 )
-	ROM_LOAD( "u163_10-7-96.u163", 0x180000, 0x080000, CRC(a45b3f85) SHA1(21965dcf89e04d5ee21e27eefd6baa34d6d4479a) ) // labeled: U163   10/7/96
+	ROM_LOAD( "u163_10-7-96.u163", 0x180000, 0x080000, CRC(1053b94a) SHA1(b3ff6a269c1cc4a91a08bc277b896e3e6c4eceee) ) // labeled: U163   10/7/96
 	ROM_RELOAD(                    0x578000, 0x080000 )
 ROM_END
 
@@ -583,9 +583,9 @@ Note: If you set the dipswitch to service mode and reset the game within Mame. A
       The program rom checksum in the diagnostic screen is 17551773
 */
 	ROM_LOAD32_BYTE( "police_trainer_v1.3b_u113_cb73.u113", 0x00000, 0x20000, CRC(d636c00d) SHA1(ef989eb85b51a64ca640297c1286514c8d7f8f76) ) // labeled: Police Trainer   v1.3B   U113  CB73
-	ROM_LOAD32_BYTE( "police_trainer_v1.3b_u112_974c.u112", 0x00001, 0x20000, CRC(86f0497e) SHA1(d177023f7cb2e01de60ef072212836dc94759c1a) ) // labeled: Police Trainer   v1.3B   U113  974C
-	ROM_LOAD32_BYTE( "police_trainer_v1.3b_u111_e5f1.u111", 0x00002, 0x20000, CRC(39e96d6a) SHA1(efe6ffe70432b94c98f3d7247408a6d2f6f9e33d) ) // labeled: Police Trainer   v1.3B   U113  E5F1
-	ROM_LOAD32_BYTE( "police_trainer_v1.3b_u110_556d.u110", 0x00003, 0x20000, CRC(d7e6f4cb) SHA1(9dffe4937bc5cf47d870f06ae0dced362cd2dd66) ) // labeled: Police Trainer   v1.3B   U113  556D
+	ROM_LOAD32_BYTE( "police_trainer_v1.3b_u112_974c.u112", 0x00001, 0x20000, CRC(86f0497e) SHA1(d177023f7cb2e01de60ef072212836dc94759c1a) ) // labeled: Police Trainer   v1.3B   U112  974C
+	ROM_LOAD32_BYTE( "police_trainer_v1.3b_u111_e5f1.u111", 0x00002, 0x20000, CRC(39e96d6a) SHA1(efe6ffe70432b94c98f3d7247408a6d2f6f9e33d) ) // labeled: Police Trainer   v1.3B   U111  E5F1
+	ROM_LOAD32_BYTE( "police_trainer_v1.3b_u110_556d.u110", 0x00003, 0x20000, CRC(d7e6f4cb) SHA1(9dffe4937bc5cf47d870f06ae0dced362cd2dd66) ) // labeled: Police Trainer   v1.3B   U110  556D
 
 	ROM_REGION( 0x1000000, "bsmt", 0 )
 	ROM_LOAD( "u160_police_trainer_p-p_marketing.u160", 0x000000, 0x100000, CRC(f267f813) SHA1(ae58507947fe2e9701b5df46565fd9908e2f9d77) ) // mask ROM labeled: U160   POLICE TRAINER   P&P MARKETING
@@ -704,7 +704,7 @@ ROM_END
 
 void policetr_state::driver_init()
 {
-	m_maincpu->space(AS_PROGRAM).install_write_handler(m_speedup_addr, m_speedup_addr+3, write32_delegate(FUNC(policetr_state::speedup_w),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(m_speedup_addr, m_speedup_addr+3, write32_delegate(*this, FUNC(policetr_state::speedup_w)));
 	m_speedup_data = m_rambase + m_speedup_addr/4;
 }
 
@@ -718,7 +718,7 @@ void policetr_state::driver_init()
 
 GAME( 1996, policetr,    0,        policetr, policetr, policetr_state, empty_init, ROT0, "P&P Marketing", "Police Trainer (Rev 1.3)",        0 )
 GAME( 1996, policetr11,  policetr, policetr, polict10, policetr_state, empty_init, ROT0, "P&P Marketing", "Police Trainer (Rev 1.1)",        0 )
-GAME( 1996, policetr10,  policetr, policetr, polict10, policetr_state, empty_init, ROT0, "P&P Marketing", "Police Trainer (Rev 1.0)",        0 )
+GAME( 1996, policetr10,  policetr, policetr, polict10, polict10_state, empty_init, ROT0, "P&P Marketing", "Police Trainer (Rev 1.0)",        0 )
 
 GAME( 1996, policetr13a, policetr, sshooter, policetr, plctr13b_state, empty_init, ROT0, "P&P Marketing", "Police Trainer (Rev 1.3B Newer)", 0 )
 GAME( 1996, policetr13b, policetr, sshooter, policetr, plctr13b_state, empty_init, ROT0, "P&P Marketing", "Police Trainer (Rev 1.3B)",       0 )

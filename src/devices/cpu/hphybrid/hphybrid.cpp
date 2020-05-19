@@ -177,6 +177,7 @@ hp_hybrid_cpu_device::hp_hybrid_cpu_device(const machine_config &mconfig, device
 	, m_pa_changed_func(*this)
 	, m_opcode_func(*this)
 	, m_stm_func(*this)
+	, m_int_func(*this)
 	, m_addr_mask((1U << addrwidth) - 1)
 	, m_relative_mode(true)
 	, m_r_cycles(DEF_MEM_R_CYCLES)
@@ -245,6 +246,7 @@ void hp_hybrid_cpu_device::device_start()
 	m_pa_changed_func.resolve_safe();
 	m_opcode_func.resolve_safe();
 	m_stm_func.resolve();
+	m_int_func.resolve_safe(0xff);
 }
 
 void hp_hybrid_cpu_device::device_reset()
@@ -404,9 +406,9 @@ bool hp_hybrid_cpu_device::execute_one_bpc(uint16_t opcode , uint16_t& next_pc)
 	case 0x4000:
 		// JSM
 		m_icount -= 5;
+		next_pc = remove_mae(get_ea(opcode));
 		m_reg_R = (m_reg_R + 1) & m_addr_mask_low16;
 		WM(AEC_CASE_C , m_reg_R , m_reg_P);
-		next_pc = remove_mae(get_ea(opcode));
 		return true;
 
 	case 0x4800:
@@ -716,10 +718,7 @@ void hp_hybrid_cpu_device::emc_start()
 	state_add(HPHYBRID_R26, "R26" , m_reg_r26).noshow();
 	state_add(HPHYBRID_R27, "R27" , m_reg_r27).noshow();
 
-	save_item(NAME(m_reg_ar2[ 0 ]));
-	save_item(NAME(m_reg_ar2[ 1 ]));
-	save_item(NAME(m_reg_ar2[ 2 ]));
-	save_item(NAME(m_reg_ar2[ 3 ]));
+	save_item(NAME(m_reg_ar2));
 	save_item(NAME(m_reg_se));
 	save_item(NAME(m_reg_r25));
 	save_item(NAME(m_reg_r26));
@@ -1325,8 +1324,10 @@ void hp_hybrid_cpu_device::check_for_interrupts()
 		return;
 	}
 
-	// Get interrupt vector in low byte
-	uint8_t vector = uint8_t(standard_irq_callback(irqline));
+	standard_irq_callback(irqline);
+
+	// Get interrupt vector in low byte (level is available on PA3)
+	uint8_t vector = m_int_func(BIT(m_flags , HPHYBRID_IRH_BIT) ? 1 : 0);
 	uint8_t new_PA;
 
 	// Get highest numbered 1
@@ -1749,12 +1750,7 @@ void hp_5061_3001_cpu_device::device_start()
 	state_add(HPHYBRID_R35, "R35" , m_reg_aec[ 3 ]);
 	state_add(HPHYBRID_R36, "R36" , m_reg_aec[ 4 ]);
 	state_add(HPHYBRID_R37, "R37" , m_reg_aec[ 5 ]);
-	save_item(NAME(m_reg_aec[ 0 ]));
-	save_item(NAME(m_reg_aec[ 1 ]));
-	save_item(NAME(m_reg_aec[ 2 ]));
-	save_item(NAME(m_reg_aec[ 3 ]));
-	save_item(NAME(m_reg_aec[ 4 ]));
-	save_item(NAME(m_reg_aec[ 5 ]));
+	save_item(NAME(m_reg_aec));
 }
 
 void hp_5061_3001_cpu_device::device_reset()

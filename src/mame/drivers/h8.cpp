@@ -54,6 +54,7 @@ Official test program from pages 4 to 8 of the operator's manual:
 #include "sound/beep.h"
 #include "speaker.h"
 
+#include "formats/h8_cas.h"
 #include "h8.lh"
 
 
@@ -77,7 +78,7 @@ private:
 	DECLARE_READ8_MEMBER(portf0_r);
 	DECLARE_WRITE8_MEMBER(portf0_w);
 	DECLARE_WRITE8_MEMBER(portf1_w);
-	DECLARE_WRITE8_MEMBER(h8_status_callback);
+	void h8_status_callback(uint8_t data);
 	DECLARE_WRITE_LINE_MEMBER(h8_inte_callback);
 	TIMER_DEVICE_CALLBACK_MEMBER(h8_irq_pulse);
 	TIMER_DEVICE_CALLBACK_MEMBER(kansas_r);
@@ -257,7 +258,7 @@ WRITE_LINE_MEMBER( h8_state::h8_inte_callback )
 	m_irq_ctl &= 0x7f | ((state) ? 0 : 0x80);
 }
 
-WRITE8_MEMBER( h8_state::h8_status_callback )
+void h8_state::h8_status_callback(uint8_t data)
 {
 /* This is rather messy, but basically there are 2 D flipflops, one drives the other,
 the data is /INTE while the clock is /M1. If the system is in Single Instruction mode,
@@ -343,6 +344,7 @@ void h8_state::h8(machine_config &config)
 	cassette_clock.signal_handler().append(m_uart, FUNC(i8251_device::write_rxc));
 
 	CASSETTE(config, m_cass);
+	m_cass->set_formats(h8_cassette_formats);
 	m_cass->set_default_state(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_ENABLED);
 	m_cass->add_route(ALL_OUTPUTS, "mono", 0.05);
 	m_cass->set_interface("h8_cass");
@@ -354,7 +356,7 @@ void h8_state::h8(machine_config &config)
 
 /* ROM definition */
 ROM_START( h8 )
-	ROM_REGION( 0x10000, "maincpu", ROMREGION_ERASEFF )
+	ROM_REGION( 0x2000, "maincpu", ROMREGION_ERASEFF )
 	// H17 fdc bios - needed by bios2&3
 	ROM_LOAD( "2716_444-19_h17.rom", 0x1800, 0x0800, CRC(26e80ae3) SHA1(0c0ee95d7cb1a760f924769e10c0db1678f2435c))
 

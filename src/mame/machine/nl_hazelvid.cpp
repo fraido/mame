@@ -222,7 +222,7 @@ NETLIST_START(hazelvid)
 	EPROM_2716(u78, low, low, lc20, lc21, lc22, lc23, u66.Q1, u66.Q2, u66.Q3, u66.Q4, u66.Q5, u66.Q6, u56.Q1)
 	PARAM(u78.ROM, "u83_chr.bin")
 
-	TTL_74166(u77, video_clk, low, ndot, low, u78.D0, u78.D1, u78.D2, u78.D3, u78.D4, u78.D5, u78.D6, low, clr_vid_sr)
+	TTL_74166(u77, video_clk, low, ndot, low, u78.O0, u78.O1, u78.O2, u78.O3, u78.O4, u78.O5, u78.O6, low, clr_vid_sr)
 	ALIAS(raw_dot, u77.QH)
 
 	TTL_7400_NAND(u79_4, fgbit_q, fgbit_q)
@@ -243,5 +243,10 @@ NETLIST_START(hazelvid)
 
 	NET_C(R21_POT.3, GND)
 	NET_C(R21_POT.2, GND)
+
+	NET_C(VCC, high.VCC, low.VCC, cpu_ba4.VCC, cpu_iowq.VCC, ba13.VCC, memwq.VCC, rwq.VCC, mrq.VCC,
+		cpu_db0.VCC, cpu_db1.VCC, cpu_db2.VCC, cpu_db3.VCC, cpu_db4.VCC, cpu_db5.VCC, cpu_db6.VCC, cpu_db7.VCC)
+	NET_C(GND, high.GND, low.GND, cpu_ba4.GND, cpu_iowq.GND, ba13.GND, memwq.GND, rwq.GND, mrq.GND,
+		cpu_db0.GND, cpu_db1.GND, cpu_db2.GND, cpu_db3.GND, cpu_db4.GND, cpu_db5.GND, cpu_db6.GND, cpu_db7.GND)
 
 NETLIST_END()

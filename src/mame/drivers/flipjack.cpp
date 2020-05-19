@@ -137,7 +137,7 @@ private:
 	DECLARE_WRITE8_MEMBER(bank_w);
 	DECLARE_WRITE8_MEMBER(layer_w);
 	DECLARE_READ8_MEMBER(soundlatch_r);
-	DECLARE_WRITE8_MEMBER(portc_w);
+	void portc_w(uint8_t data);
 	void flipjack_palette(palette_device &palette) const;
 	MC6845_UPDATE_ROW(update_row);
 
@@ -273,7 +273,7 @@ WRITE8_MEMBER(flipjack_state::sound_nmi_ack_w)
 	m_audiocpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
 }
 
-WRITE8_MEMBER(flipjack_state::portc_w)
+void flipjack_state::portc_w(uint8_t data)
 {
 	// vestigial hopper output?
 }
@@ -447,7 +447,7 @@ void flipjack_state::flipjack(machine_config &config)
 	crtc.set_char_width(8);
 	crtc.out_vsync_callback().set_inputline("maincpu", INPUT_LINE_IRQ0, HOLD_LINE);
 	crtc.out_vsync_callback().append_inputline("audiocpu", INPUT_LINE_NMI, ASSERT_LINE);
-	crtc.set_update_row_callback(FUNC(flipjack_state::update_row), this);
+	crtc.set_update_row_callback(FUNC(flipjack_state::update_row));
 
 	GFXDECODE(config, "gfxdecode", m_palette, gfx_flipjack);
 	PALETTE(config, m_palette, FUNC(flipjack_state::flipjack_palette), 128+8);

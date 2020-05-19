@@ -61,7 +61,7 @@ private:
 	DECLARE_READ8_MEMBER(display_ready_r);
 	DECLARE_WRITE8_MEMBER(display_w);
 	DECLARE_WRITE8_MEMBER(out_w);
-	DECLARE_WRITE8_MEMBER(bank_select_w);
+	void bank_select_w(uint8_t data);
 	DECLARE_WRITE8_MEMBER(sound_w);
 
 	void main_map(address_map &map);
@@ -149,7 +149,7 @@ WRITE8_MEMBER(destiny_state::out_w)
 	// other bits: N/C?
 }
 
-WRITE8_MEMBER(destiny_state::bank_select_w)
+void destiny_state::bank_select_w(uint8_t data)
 {
 	// d0-d2 and d4: bank (but only up to 4 banks supported)
 	membank("bank1")->set_base(memregion("answers")->base() + 0x6000 * (data & 3));
@@ -182,12 +182,12 @@ void destiny_state::main_map(address_map &map)
 	map(0x9003, 0x9003).portr("KEY1");
 	map(0x9004, 0x9004).portr("KEY2");
 	map(0x9005, 0x9005).portr("DIPSW").w(FUNC(destiny_state::out_w));
-//  AM_RANGE(0x9006, 0x9006) AM_NOP // printer motor on
-//  AM_RANGE(0x9007, 0x9007) AM_NOP // printer data
+//  map(0x9006, 0x9006).noprw(); // printer motor on
+//  map(0x9007, 0x9007).noprw(); // printer data
 	map(0x900a, 0x900b).w(FUNC(destiny_state::sound_w));
 	map(0x900c, 0x900c).w(FUNC(destiny_state::bank_select_w));
-//  AM_RANGE(0x900d, 0x900d) AM_NOP // printer motor off
-//  AM_RANGE(0x900e, 0x900e) AM_NOP // printer motor jam reset
+//  map(0x900d, 0x900d).noprw(); // printer motor off
+//  map(0x900e, 0x900e).noprw(); // printer motor jam reset
 	map(0xc000, 0xffff).rom();
 }
 
@@ -263,7 +263,7 @@ void destiny_state::machine_start()
 
 void destiny_state::machine_reset()
 {
-	bank_select_w(m_maincpu->space(AS_PROGRAM), 0, 0);
+	bank_select_w(0);
 }
 
 void destiny_state::destiny(machine_config &config)

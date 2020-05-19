@@ -1,5 +1,6 @@
 // license:BSD-3-Clause
 // copyright-holders:Sandro Ronco
+// thanks-to:rfka01
 /***************************************************************************
 
         NCR Decision Mate V
@@ -24,6 +25,7 @@
 
 // expansion slots
 #include "bus/dmv/dmvbus.h"
+#include "bus/dmv/k012.h"
 #include "bus/dmv/k210.h"
 #include "bus/dmv/k220.h"
 #include "bus/dmv/k230.h"
@@ -94,14 +96,14 @@ private:
 	DECLARE_READ8_MEMBER(romsel_r);
 	DECLARE_WRITE8_MEMBER(ramsel_w);
 	DECLARE_WRITE8_MEMBER(romsel_w);
-	DECLARE_READ8_MEMBER(kb_mcu_port1_r);
-	DECLARE_WRITE8_MEMBER(kb_mcu_port1_w);
-	DECLARE_WRITE8_MEMBER(kb_mcu_port2_w);
+	uint8_t kb_mcu_port1_r();
+	void kb_mcu_port1_w(uint8_t data);
+	void kb_mcu_port2_w(uint8_t data);
 	DECLARE_WRITE8_MEMBER(rambank_w);
-	DECLARE_READ8_MEMBER(program_r);
-	DECLARE_WRITE8_MEMBER(program_w);
-	DECLARE_READ8_MEMBER(exp_program_r);
-	DECLARE_WRITE8_MEMBER(exp_program_w);
+	uint8_t program_r(offs_t offset);
+	void program_w(offs_t offset, uint8_t data);
+	uint8_t exp_program_r(offs_t offset);
+	void exp_program_w(offs_t offset, uint8_t data);
 	DECLARE_WRITE_LINE_MEMBER(thold7_w);
 
 	void update_busint(int slot, int state);
@@ -258,8 +260,8 @@ WRITE8_MEMBER(dmv_state::fdd_motor_w)
 	m_pit->write_gate0(0);
 
 	m_floppy_motor = 0;
-	m_floppy0->get_device()->mon_w(m_floppy_motor);
-	m_floppy1->get_device()->mon_w(m_floppy_motor);
+	if (m_floppy0->get_device()) m_floppy0->get_device()->mon_w(m_floppy_motor);
+	if (m_floppy1->get_device()) m_floppy1->get_device()->mon_w(m_floppy_motor);
 }
 
 READ8_MEMBER(dmv_state::sys_status_r)
@@ -284,7 +286,7 @@ READ8_MEMBER(dmv_state::sys_status_r)
 	if (!(m_slot7->av16bit() || m_slot7a->av16bit()))
 		data |= 0x02;
 
-	if (!m_floppy0->get_device()->ready_r())
+	if (m_floppy0->get_device() && !m_floppy0->get_device()->ready_r())
 		data |= 0x04;
 
 	if (m_fdc->get_irq())
@@ -438,22 +440,22 @@ void dmv_state::ifsel_w(int ifsel, offs_t offset, uint8_t data)
 		slot->io_write(ifsel, offset, data);
 }
 
-WRITE8_MEMBER(dmv_state::exp_program_w)
+void dmv_state::exp_program_w(offs_t offset, uint8_t data)
 {
 	program_write((offset >> 16) & 0x07, offset, data);
 }
 
-READ8_MEMBER(dmv_state::exp_program_r)
+uint8_t dmv_state::exp_program_r(offs_t offset)
 {
 	return program_read((offset >> 16) & 0x07, offset);
 }
 
-WRITE8_MEMBER(dmv_state::program_w)
+void dmv_state::program_w(offs_t offset, uint8_t data)
 {
 	program_write(m_ram_bank, offset, data);
 }
 
-READ8_MEMBER(dmv_state::program_r)
+uint8_t dmv_state::program_r(offs_t offset)
 {
 	return program_read(m_ram_bank, offset);
 }
@@ -590,18 +592,18 @@ void dmv_state::dmv_io(address_map &map)
 	map(0xc0, 0xcf).rw(FUNC(dmv_state::ifsel4_r), FUNC(dmv_state::ifsel4_w));
 }
 
-READ8_MEMBER(dmv_state::kb_mcu_port1_r)
+uint8_t dmv_state::kb_mcu_port1_r()
 {
 	return !(m_keyboard->sd_poll_r() & !m_sd_poll_state);
 }
 
-WRITE8_MEMBER(dmv_state::kb_mcu_port1_w)
+void dmv_state::kb_mcu_port1_w(uint8_t data)
 {
 	m_sd_poll_state = BIT(data, 1);
 	m_keyboard->sd_poll_w(!m_sd_poll_state);
 }
 
-WRITE8_MEMBER(dmv_state::kb_mcu_port2_w)
+void dmv_state::kb_mcu_port2_w(uint8_t data)
 {
 	m_speaker->level_w(BIT(data, 0));
 	m_slot7a->keyint_w(BIT(data, 4));
@@ -617,7 +619,7 @@ void dmv_state::upd7220_map(address_map &map)
 /* Input ports */
 INPUT_PORTS_START( dmv )
 	PORT_START("CONFIG")
-	PORT_CONFNAME( 0x01, 0x00, "Video Board" )
+	PORT_CONFNAME( 0x01, 0x01, "Video Board" )
 	PORT_CONFSETTING( 0x00, "Monochrome" )
 	PORT_CONFSETTING( 0x01, "Color" )
 INPUT_PORTS_END
@@ -625,6 +627,21 @@ INPUT_PORTS_END
 void dmv_state::machine_start()
 {
 	m_leds.resolve();
+
+	// register for state saving
+	save_item(NAME(m_ramoutdis));
+	save_item(NAME(m_switch16));
+	save_item(NAME(m_thold7));
+	save_item(NAME(m_dma_hrq));
+	save_item(NAME(m_ram_bank));
+	save_item(NAME(m_color_mode));
+	save_item(NAME(m_eop_line));
+	save_item(NAME(m_dack3_line));
+	save_item(NAME(m_sd_poll_state));
+	save_item(NAME(m_floppy_motor));
+	save_item(NAME(m_busint));
+	save_item(NAME(m_irqs));
+	save_pointer(NAME(m_ram->base()), m_ram->bytes());
 }
 
 void dmv_state::machine_reset()
@@ -709,8 +726,8 @@ WRITE_LINE_MEMBER( dmv_state::pit_out0 )
 	if (!state)
 	{
 		m_floppy_motor = 1;
-		m_floppy0->get_device()->mon_w(m_floppy_motor);
-		m_floppy1->get_device()->mon_w(m_floppy_motor);
+		if (m_floppy0->get_device()) m_floppy0->get_device()->mon_w(m_floppy_motor);
+		if (m_floppy1->get_device()) m_floppy1->get_device()->mon_w(m_floppy_motor);
 	}
 }
 
@@ -752,6 +769,7 @@ static void dmv_slot2_6(device_slot_interface &device)
 	device.option_add("k801", DMV_K801);        // K801 RS-232 Switchable Interface
 	device.option_add("k803", DMV_K803);        // K803 RTC module
 	device.option_add("k806", DMV_K806);        // K806 Mouse module
+	device.option_add("c3282", DMV_C3282);      // C3282 External HD Interface
 }
 
 static void dmv_slot7(device_slot_interface &device)
@@ -764,7 +782,7 @@ static void dmv_slot7(device_slot_interface &device)
 
 static void dmv_slot2a(device_slot_interface &device)
 {
-
+	device.option_add("k012", DMV_K012);        // K012 Internal HD Interface
 }
 
 static void dmv_slot7a(device_slot_interface &device)
@@ -785,7 +803,7 @@ void dmv_state::dmv(machine_config &config)
 	kbmcu.p1_out_cb().set(FUNC(dmv_state::kb_mcu_port1_w)); // bit 1 data to kb
 	kbmcu.p2_out_cb().set(FUNC(dmv_state::kb_mcu_port2_w));
 
-	config.m_perfect_cpu_quantum = subtag("maincpu");
+	config.set_perfect_quantum(m_maincpu);
 
 	DMV_KEYBOARD(config, m_keyboard, 0);
 
@@ -878,7 +896,7 @@ void dmv_state::dmv(machine_config &config)
 
 	SOFTWARE_LIST(config, "flop_list").set_original("dmv");
 
-	QUICKLOAD(config, "quickload", "com,cpm", attotime::from_seconds(3)).set_load_callback(FUNC(dmv_state::quickload_cb), this);
+	QUICKLOAD(config, "quickload", "com,cpm", attotime::from_seconds(3)).set_load_callback(FUNC(dmv_state::quickload_cb));
 }
 
 /* ROM definition */
@@ -912,4 +930,4 @@ ROM_END
 /* Driver */
 
 //    YEAR  NAME  PARENT  COMPAT  MACHINE  INPUT  CLASS      INIT        COMPANY  FULLNAME           FLAGS
-COMP( 1984, dmv,  0,      0,      dmv,     dmv,   dmv_state, empty_init, "NCR",   "Decision Mate V", MACHINE_NOT_WORKING | MACHINE_NO_SOUND)
+COMP( 1984, dmv,  0,      0,      dmv,     dmv,   dmv_state, empty_init, "NCR",   "Decision Mate V", MACHINE_SUPPORTS_SAVE)

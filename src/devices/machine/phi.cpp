@@ -191,15 +191,7 @@ phi_device::phi_device(const machine_config &mconfig, device_type type, const ch
 	: device_t(mconfig, type, tag, owner, clock),
 	  m_dio_read_func(*this),
 	  m_dio_write_func(*this),
-	  m_signal_wr_fns{
-		  devcb_write_line(*this),
-		  devcb_write_line(*this),
-		  devcb_write_line(*this),
-		  devcb_write_line(*this),
-		  devcb_write_line(*this),
-		  devcb_write_line(*this),
-		  devcb_write_line(*this),
-		  devcb_write_line(*this) },
+	  m_signal_wr_fns(*this),
 	  m_int_write_func(*this),
 	  m_dmarq_write_func(*this),
 	  m_sys_cntrl_read_func(*this)
@@ -251,7 +243,7 @@ WRITE_LINE_MEMBER(phi_device::ren_w)
 	set_ext_signal(PHI_488_REN , state);
 }
 
-WRITE8_MEMBER(phi_device::bus_dio_w)
+void phi_device::bus_dio_w(uint8_t data)
 {
 	update_pp();
 }
@@ -384,9 +376,7 @@ void phi_device::device_start()
 
 	m_dio_read_func.resolve_safe(0xff);
 	m_dio_write_func.resolve_safe();
-	for (auto& f : m_signal_wr_fns) {
-		f.resolve_safe();
-	}
+	m_signal_wr_fns.resolve_all_safe();
 	m_int_write_func.resolve_safe();
 	m_dmarq_write_func.resolve_safe();
 	m_sys_cntrl_read_func.resolve_safe(0);

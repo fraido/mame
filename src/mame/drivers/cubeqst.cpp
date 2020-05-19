@@ -80,7 +80,7 @@ public:
 	DECLARE_WRITE16_MEMBER(write_rotram);
 	DECLARE_READ16_MEMBER(read_sndram);
 	DECLARE_WRITE16_MEMBER(write_sndram);
-	DECLARE_WRITE16_MEMBER(sound_dac_w);
+	void sound_dac_w(uint16_t data);
 	virtual void machine_start() override;
 	virtual void machine_reset() override;
 	virtual void video_start() override;
@@ -509,7 +509,7 @@ void cubeqst_state::machine_reset()
  */
 
 /* Called by the sound CPU emulation */
-WRITE16_MEMBER( cubeqst_state::sound_dac_w )
+void cubeqst_state::sound_dac_w(uint16_t data)
 {
 	/// d0 selects between 4051.1d (right, d0=1) and 4051.3d (left, d0=0)
 	/// d1-d3 select the channel
@@ -542,7 +542,7 @@ void cubeqst_state::cubeqst(machine_config &config)
 	m_soundcpu->dac_w().set(FUNC(cubeqst_state::sound_dac_w));
 	m_soundcpu->set_sound_region("soundproms");
 
-	config.m_minimum_quantum = attotime::from_hz(48000);
+	config.set_maximum_quantum(attotime::from_hz(48000));
 
 	NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_0);
 
@@ -565,31 +565,19 @@ void cubeqst_state::cubeqst(machine_config &config)
 	m_laserdisc->add_route(0, "lspeaker", 1.0);
 	m_laserdisc->add_route(1, "rspeaker", 1.0);
 
+	voltage_regulator_device &vref(VOLTAGE_REGULATOR(config, "vref", 0));
 	for (int i = 0; i < 8; i++)
 	{
 		// ad7521jn.2d (59) + cd4051be.1d (24) + 1500pf.c22 (34) + tl074cn.1b (53) + r10k.rn1 (30)
 		AD7521(config, m_dacs[i*2+0], 0).add_route(0, "rspeaker", 0.125);
+		vref.add_route(0, m_dacs[i*2+0], 1.0, DAC_VREF_POS_INPUT);
+		vref.add_route(0, m_dacs[i*2+0], -1.0, DAC_VREF_NEG_INPUT);
 
 		// ad7521jn.2d (59) + cd4051be.3d (24) + 1500pf.c13 (34) + tl074cn.3b (53) + r10k.rn3 (30)
 		AD7521(config, m_dacs[i*2+1], 0).add_route(0, "lspeaker", 0.125);
+		vref.add_route(0, m_dacs[i*2+1], 1.0, DAC_VREF_POS_INPUT);
+		vref.add_route(0, m_dacs[i*2+1], -1.0, DAC_VREF_NEG_INPUT);
 	}
-	voltage_regulator_device &vref(VOLTAGE_REGULATOR(config, "vref", 0));
-	vref.add_route(0, "rdac0", 1.0, DAC_VREF_POS_INPUT); vref.add_route(0, "rdac0", -1.0, DAC_VREF_NEG_INPUT);
-	vref.add_route(0, "ldac0", 1.0, DAC_VREF_POS_INPUT); vref.add_route(0, "ldac0", -1.0, DAC_VREF_NEG_INPUT);
-	vref.add_route(0, "rdac1", 1.0, DAC_VREF_POS_INPUT); vref.add_route(0, "rdac1", -1.0, DAC_VREF_NEG_INPUT);
-	vref.add_route(0, "ldac1", 1.0, DAC_VREF_POS_INPUT); vref.add_route(0, "ldac1", -1.0, DAC_VREF_NEG_INPUT);
-	vref.add_route(0, "rdac2", 1.0, DAC_VREF_POS_INPUT); vref.add_route(0, "rdac2", -1.0, DAC_VREF_NEG_INPUT);
-	vref.add_route(0, "ldac2", 1.0, DAC_VREF_POS_INPUT); vref.add_route(0, "ldac2", -1.0, DAC_VREF_NEG_INPUT);
-	vref.add_route(0, "rdac3", 1.0, DAC_VREF_POS_INPUT); vref.add_route(0, "rdac3", -1.0, DAC_VREF_NEG_INPUT);
-	vref.add_route(0, "ldac3", 1.0, DAC_VREF_POS_INPUT); vref.add_route(0, "ldac3", -1.0, DAC_VREF_NEG_INPUT);
-	vref.add_route(0, "rdac4", 1.0, DAC_VREF_POS_INPUT); vref.add_route(0, "rdac4", -1.0, DAC_VREF_NEG_INPUT);
-	vref.add_route(0, "ldac4", 1.0, DAC_VREF_POS_INPUT); vref.add_route(0, "ldac4", -1.0, DAC_VREF_NEG_INPUT);
-	vref.add_route(0, "rdac5", 1.0, DAC_VREF_POS_INPUT); vref.add_route(0, "rdac5", -1.0, DAC_VREF_NEG_INPUT);
-	vref.add_route(0, "ldac5", 1.0, DAC_VREF_POS_INPUT); vref.add_route(0, "ldac5", -1.0, DAC_VREF_NEG_INPUT);
-	vref.add_route(0, "rdac6", 1.0, DAC_VREF_POS_INPUT); vref.add_route(0, "rdac6", -1.0, DAC_VREF_NEG_INPUT);
-	vref.add_route(0, "ldac6", 1.0, DAC_VREF_POS_INPUT); vref.add_route(0, "ldac6", -1.0, DAC_VREF_NEG_INPUT);
-	vref.add_route(0, "rdac7", 1.0, DAC_VREF_POS_INPUT); vref.add_route(0, "rdac7", -1.0, DAC_VREF_NEG_INPUT);
-	vref.add_route(0, "ldac7", 1.0, DAC_VREF_POS_INPUT); vref.add_route(0, "ldac7", -1.0, DAC_VREF_NEG_INPUT);
 }
 
 

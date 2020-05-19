@@ -1,12 +1,9 @@
 // license:GPL-2.0+
 // copyright-holders:Couriersud
-/***************************************************************************
 
-    nl_factory.c
-
-    Discrete netlist implementation.
-
-****************************************************************************/
+//
+// nl_factory.cpp
+//
 
 #include "nl_factory.h"
 #include "nl_base.h"
@@ -14,9 +11,10 @@
 #include "nl_setup.h"
 #include "plib/putil.h"
 
-namespace netlist { namespace factory
-{
+namespace netlist {
+namespace factory {
 
+	// FIXME: this doesn't do anything, check how to remove
 	class NETLIB_NAME(wrapper) : public device_t
 	{
 	public:
@@ -29,17 +27,16 @@ namespace netlist { namespace factory
 		NETLIB_UPDATEI() { }
 	};
 
-	element_t::element_t(const pstring &name, const pstring &classname,
-			const pstring &def_param, const pstring &sourcefile)
-		: m_name(name), m_classname(classname), m_def_param(def_param),
-		  m_sourcefile(sourcefile)
+	element_t::element_t(const pstring &name, const pstring &def_param,
+		plib::source_location &&sourceloc)
+		: m_name(name), m_def_param(def_param),
+		  m_sourceloc(sourceloc)
 	{
 	}
 
-	element_t::element_t(const pstring &name, const pstring &classname,
-			const pstring &def_param)
-		: m_name(name), m_classname(classname), m_def_param(def_param),
-		  m_sourcefile("<unknown>")
+	element_t::element_t(const pstring &name, const pstring &def_param)
+		: m_name(name), m_def_param(def_param),
+		  m_sourceloc("<unknown>", 1)
 	{
 	}
 
@@ -52,11 +49,14 @@ namespace netlist { namespace factory
 	{
 	}
 
-	void list_t::register_device(plib::unique_ptr<element_t> &&factory)
+	void list_t::add(plib::unique_ptr<element_t> &&factory)
 	{
 		for (auto & e : *this)
 			if (e->name() == factory->name())
+			{
 				m_log.fatal(MF_FACTORY_ALREADY_CONTAINS_1(factory->name()));
+				throw nl_exception(MF_FACTORY_ALREADY_CONTAINS_1(factory->name()));
+			}
 		push_back(std::move(factory));
 	}
 
@@ -69,16 +69,16 @@ namespace netlist { namespace factory
 		}
 
 		m_log.fatal(MF_CLASS_1_NOT_FOUND(devname));
-		return nullptr; // appease code analysis
+		throw nl_exception(MF_CLASS_1_NOT_FOUND(devname));
 	}
 
 	// -----------------------------------------------------------------------------
 	// factory_lib_entry_t: factory class to wrap macro based chips/elements
 	// -----------------------------------------------------------------------------
 
-	pool_owned_ptr<device_t> library_element_t::Create(netlist_state_t &anetlist, const pstring &name)
+	unique_pool_ptr<core_device_t> library_element_t::make_device(nlmempool &pool, netlist_state_t &anetlist, const pstring &name)
 	{
-		return pool().make_poolptr<NETLIB_NAME(wrapper)>(anetlist, name);
+		return pool.make_unique<NETLIB_NAME(wrapper)>(anetlist, name);
 	}
 
 	void library_element_t::macro_actions(nlparse_t &nparser, const pstring &name)

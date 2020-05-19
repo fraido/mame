@@ -129,16 +129,16 @@ public:
 
 	uint32_t screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 
-	DECLARE_READ8_MEMBER(pio_portA_r);
-	DECLARE_READ8_MEMBER(pio_portB_r);
-	DECLARE_WRITE8_MEMBER(pio_portA_w);
-	DECLARE_WRITE8_MEMBER(pio_portB_w);
+	uint8_t pio_portA_r();
+	uint8_t pio_portB_r();
+	void pio_portA_w(uint8_t data);
+	void pio_portB_w(uint8_t data);
 
-	DECLARE_READ8_MEMBER(dma_mem_r);
-	DECLARE_WRITE8_MEMBER(dma_mem_w);
+	uint8_t dma_mem_r(offs_t offset);
+	void dma_mem_w(offs_t offset, uint8_t data);
 
-	DECLARE_READ8_MEMBER(fdc_dma_r);
-	DECLARE_WRITE8_MEMBER(fdc_dma_w);
+	uint8_t fdc_dma_r();
+	void fdc_dma_w(uint8_t data);
 
 	DECLARE_WRITE_LINE_MEMBER(hreq_w);
 	DECLARE_WRITE_LINE_MEMBER(eop_w);
@@ -188,7 +188,7 @@ protected:
 	DECLARE_READ8_MEMBER(memmap_r);
 	DECLARE_WRITE8_MEMBER(memmap_w);
 
-	void operation_strobe(address_space& space,uint8_t data);
+	void operation_strobe(uint8_t data);
 	void keyboard_clock_w(bool state);
 	uint8_t keyboard_data_r();
 	uint16_t get_key();
@@ -262,9 +262,9 @@ public:
 	void attache816(machine_config &config);
 
 private:
-	DECLARE_WRITE8_MEMBER(x86_comms_w);
-	DECLARE_READ8_MEMBER(x86_comms_r);
-	DECLARE_WRITE8_MEMBER(x86_irq_enable);
+	void x86_comms_w(uint8_t data);
+	uint8_t x86_comms_r();
+	void x86_irq_enable(uint8_t data);
 	DECLARE_WRITE8_MEMBER(x86_iobf_enable_w);
 	DECLARE_READ8_MEMBER(z80_comms_r);
 	DECLARE_WRITE8_MEMBER(z80_comms_w);
@@ -498,7 +498,7 @@ void attache_state::keyboard_clock_w(bool state)
 }
 
 // TODO: Figure out exactly how the HLD, RD, WR and CS lines on the RTC are hooked up
-READ8_MEMBER(attache_state::pio_portA_r)
+uint8_t attache_state::pio_portA_r()
 {
 	uint8_t ret = 0xff;
 	uint8_t porta = m_pio_porta;
@@ -514,7 +514,7 @@ READ8_MEMBER(attache_state::pio_portA_r)
 		m_rtc->write_w(0);
 		m_rtc->read_w(1);
 		m_rtc->address_w((porta & 0xf0) >> 4);
-		ret = m_rtc->data_r(space,0);
+		ret = m_rtc->data_r();
 		logerror("RTC: read %02x from %02x (write)\n",ret,(porta & 0xf0) >> 4);
 		break;
 	case PIO_SEL_5832_READ:
@@ -522,7 +522,7 @@ READ8_MEMBER(attache_state::pio_portA_r)
 		m_rtc->write_w(0);
 		m_rtc->read_w(1);
 		m_rtc->address_w((porta & 0xf0) >> 4);
-		ret = m_rtc->data_r(space,0);
+		ret = m_rtc->data_r();
 		logerror("RTC: read %02x from %02x\n",ret,(porta & 0xf0) >> 4);
 		break;
 	case PIO_SEL_5101_WRITE:
@@ -547,14 +547,14 @@ READ8_MEMBER(attache_state::pio_portA_r)
 	return ret;
 }
 
-READ8_MEMBER(attache_state::pio_portB_r)
+uint8_t attache_state::pio_portB_r()
 {
 	uint8_t ret = m_pio_portb & 0xbf;
 	ret |= keyboard_data_r();
 	return ret;
 }
 
-void attache_state::operation_strobe(address_space& space, uint8_t data)
+void attache_state::operation_strobe(uint8_t data)
 {
 	//logerror("PIO: Port A write operation %i, data %02x\n",m_pio_select,data);
 	switch(m_pio_select)
@@ -569,7 +569,7 @@ void attache_state::operation_strobe(address_space& space, uint8_t data)
 		m_rtc->cs_w(1);
 		m_rtc->read_w(0);
 		m_rtc->address_w((data & 0xf0) >> 4);
-		m_rtc->data_w(space,0,data & 0x0f);
+		m_rtc->data_w(data & 0x0f);
 		m_rtc->write_w(1);
 		logerror("RTC: write %01x to %01x\n",data & 0x0f,(data & 0xf0) >> 4);
 		break;
@@ -605,7 +605,7 @@ void attache_state::operation_strobe(address_space& space, uint8_t data)
 	}
 }
 
-WRITE8_MEMBER(attache_state::pio_portA_w)
+void attache_state::pio_portA_w(uint8_t data)
 {
 	//  AO-7 = LATCH DATA OUT:
 	//  LO = MOTOR ON
@@ -620,7 +620,7 @@ WRITE8_MEMBER(attache_state::pio_portA_w)
 	m_pio_porta = data;
 }
 
-WRITE8_MEMBER(attache_state::pio_portB_w)
+void attache_state::pio_portB_w(uint8_t data)
 {
 	//  BO-1 = 5101 A4-5
 	//  B2-4 = OPERATION SELECT
@@ -639,7 +639,7 @@ WRITE8_MEMBER(attache_state::pio_portB_w)
 	if(!(data & 0x20) && (m_pio_portb & 0x20))
 	{
 		m_pio_select = (data & 0x1c) >> 2;
-		operation_strobe(space,m_pio_porta);
+		operation_strobe(m_pio_porta);
 	}
 	m_pio_portb = data;
 	keyboard_clock_w(data & 0x80);
@@ -669,7 +669,7 @@ READ8_MEMBER(attache_state::display_data_r)
 		ret = m_gfx_ram[(m_gfx_line*128)+(param & 0x7f)+(128*32*4)];
 		break;
 	case DISP_CRTC:
-		ret = m_crtc->read(space, m_crtc_reg_select);
+		ret = m_crtc->read(m_crtc_reg_select);
 		break;
 	case DISP_ATTR:
 		ret = m_attr_ram[(m_attr_line*128)+(param & 0x7f)];
@@ -705,7 +705,7 @@ WRITE8_MEMBER(attache_state::display_data_w)
 		m_gfx_ram[(m_gfx_line*128)+(param & 0x7f)+(128*32*4)] = data;
 		break;
 	case DISP_CRTC:
-		m_crtc->write(space, m_crtc_reg_select, data);
+		m_crtc->write(m_crtc_reg_select, data);
 		//logerror("CRTC: write reg %02x, data %02x\n",m_crtc_reg_select,data);
 		break;
 	case DISP_ATTR:
@@ -779,23 +779,23 @@ WRITE8_MEMBER(attache_state::dma_mask_w)
 	m_dma->write(0x0f,data);
 }
 
-READ8_MEMBER(attache_state::fdc_dma_r)
+uint8_t attache_state::fdc_dma_r()
 {
 	uint8_t ret = m_fdc->dma_r();
 	return ret;
 }
 
-WRITE8_MEMBER(attache_state::fdc_dma_w)
+void attache_state::fdc_dma_w(uint8_t data)
 {
 	m_fdc->dma_w(data);
 }
 
-READ8_MEMBER(attache_state::dma_mem_r)
+uint8_t attache_state::dma_mem_r(offs_t offset)
 {
 	return m_maincpu->space(AS_PROGRAM).read_byte(offset);
 }
 
-WRITE8_MEMBER(attache_state::dma_mem_w)
+void attache_state::dma_mem_w(offs_t offset, uint8_t data)
 {
 	m_maincpu->space(AS_PROGRAM).write_byte(offset,data);
 }
@@ -820,14 +820,14 @@ WRITE_LINE_MEMBER( attache_state::fdc_dack_w )
  * Z80 <-> 8086 communication
  */
 
-WRITE8_MEMBER(attache816_state::x86_comms_w)
+void attache816_state::x86_comms_w(uint8_t data)
 {
 	m_comms_val = data;
 	m_ppi->pc6_w(1);
 	m_z80_rx_ready = false;
 }
 
-READ8_MEMBER(attache816_state::x86_comms_r)
+uint8_t attache816_state::x86_comms_r()
 {
 	m_z80_tx_ready = false;
 	m_ppi->pc4_w(1);
@@ -841,7 +841,7 @@ READ8_MEMBER(attache816_state::x86_comms_r)
 // bit 3: 8087 FPU
 // bit 4: enable WAIT logic
 // bit 5: enable high-resolution graphics
-WRITE8_MEMBER(attache816_state::x86_irq_enable)
+void attache816_state::x86_irq_enable(uint8_t data)
 {
 	m_x86_irq_enable = data;
 }
@@ -1094,7 +1094,7 @@ void attache_state::driver_start()
 
 	m_nvram->set_base(m_cmos_ram,64);
 
-	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x0000,0x0fff,read8_delegate(FUNC(attache_state::rom_r),this),write8_delegate(FUNC(attache_state::rom_w),this));
+	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x0000,0x0fff, read8_delegate(*this, FUNC(attache_state::rom_r)), write8_delegate(*this, FUNC(attache_state::rom_w)));
 
 	save_pointer(m_char_ram,"Character RAM",128*32);
 	save_pointer(m_attr_ram,"Attribute RAM",128*32);
@@ -1128,7 +1128,7 @@ void attache_state::attache(machine_config &config)
 	m_maincpu->set_addrmap(AS_IO, &attache_state::attache_io);
 	m_maincpu->set_daisy_config(attache_daisy_chain);
 
-	config.m_minimum_quantum = attotime::from_hz(60);
+	config.set_maximum_quantum(attotime::from_hz(60));
 
 	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER, rgb_t::green()));
 	screen.set_raw(12.324_MHz_XTAL, 784, 0, 640, 262, 0, 240);
@@ -1205,12 +1205,12 @@ void attache816_state::attache816(machine_config &config)
 	m_maincpu->set_addrmap(AS_IO, &attache816_state::attache_io);
 	m_maincpu->set_daisy_config(attache_daisy_chain);
 
-	config.m_minimum_quantum = attotime::from_hz(60);
+	config.set_maximum_quantum(attotime::from_hz(60));
 
 	I8086(config, m_extcpu, 24_MHz_XTAL / 3);
 	m_extcpu->set_addrmap(AS_PROGRAM, &attache816_state::attache_x86_map);
 	m_extcpu->set_addrmap(AS_IO, &attache816_state::attache_x86_io);
-	config.m_perfect_cpu_quantum = subtag("extcpu");
+	config.set_perfect_quantum(m_extcpu);
 
 	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER, rgb_t::green()));
 	screen.set_raw(12.324_MHz_XTAL, 784, 0, 640, 262, 0, 240);
@@ -1338,7 +1338,7 @@ ROM_START( attache816 )
 	ROM_LOAD("u630.bin",  0x0000, 0x0100, CRC(f7a5c821) SHA1(fea07d9ac7e4e5f4f72aa7b2159deaedbd662ead) )
 
 	// chip locations based on schematics
-	ROM_REGION(0x2000, "x86bios", 0)
+	ROM_REGION16_LE(0x2000, "x86bios", 0)
 	ROM_LOAD16_BYTE("u4.bin",  0x0000, 0x1000, CRC(658c8f93) SHA1(ce4b388af5b73884194f548afa706964305462f7) )
 	ROM_LOAD16_BYTE("u9.bin",  0x0001, 0x1000, CRC(cc4cd938) SHA1(6a1d316628641f9b4de5c8c46f9430ef5bd6120f) )
 

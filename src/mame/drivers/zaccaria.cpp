@@ -61,7 +61,7 @@ void zaccaria_state::machine_reset()
 	m_dsw_sel = 0;
 }
 
-WRITE8_MEMBER(zaccaria_state::dsw_sel_w)
+void zaccaria_state::dsw_sel_w(uint8_t data)
 {
 	switch (data & 0xf0)
 	{
@@ -336,7 +336,7 @@ void zaccaria_state::zaccaria(machine_config &config)
 	Z80(config, m_maincpu, XTAL(18'432'000)/6);   /* verified on pcb */
 	m_maincpu->set_addrmap(AS_PROGRAM, &zaccaria_state::main_map);
 
-//  config.m_minimum_quantum = attotime::from_hz(1000000);
+//  config.set_maximum_quantum(attotime::from_hz(1000000));
 
 	WATCHDOG_TIMER(config, "watchdog");
 

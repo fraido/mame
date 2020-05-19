@@ -10,7 +10,9 @@
 #include "includes/abc80x.h"
 #include "screen.h"
 
-#define LOG 0
+//#define VERBOSE 1
+#include "logmacro.h"
+
 
 #define HORIZONTAL_PORCH_HACK   109
 #define VERTICAL_PORCH_HACK     27
@@ -38,7 +40,7 @@ WRITE8_MEMBER( abc806_state::hrs_w )
 
 	*/
 
-	if (LOG) logerror("%s HRS %02x\n", machine().describe_context(), data);
+	LOG("%s HRS %02x\n", machine().describe_context(), data);
 
 	m_hrs = data;
 }
@@ -124,7 +126,7 @@ READ8_MEMBER( abc806_state::cli_r )
 	uint16_t hru2_addr = (m_hru2_a8 << 8) | (offset >> 8);
 	uint8_t data = m_hru2_prom->base()[hru2_addr] & 0x0f;
 
-	if (LOG) logerror("HRU II %03x : %01x\n", hru2_addr, data);
+	LOG("HRU II %03x : %01x\n", hru2_addr, data);
 
 	data |= m_rtc->dio_r() << 7;
 
@@ -161,7 +163,7 @@ READ8_MEMBER( abc806_state::sti_r )
 //  sto_w -
 //-------------------------------------------------
 
-WRITE8_MEMBER( abc806_state::sto_w )
+void abc806_state::sto_w(uint8_t data)
 {
 	int level = BIT(data, 7);
 
@@ -169,7 +171,7 @@ WRITE8_MEMBER( abc806_state::sto_w )
 	{
 	case 0:
 		// external memory enable
-		if (LOG) logerror("%s EME %u\n", machine().describe_context(), level);
+		LOG("%s EME %u\n", machine().describe_context(), level);
 		m_eme = level;
 		break;
 	case 1:
@@ -417,6 +419,28 @@ void abc806_state::hr_update(bitmap_rgb32 &bitmap, const rectangle &cliprect)
 
 void abc806_state::video_start()
 {
+	// allocate memory
+	m_char_ram.allocate(m_char_ram_size);
+	m_attr_ram.allocate(m_char_ram_size);
+
+	uint32_t videoram_size = m_ram->size() - 0x8000;
+	m_video_ram.allocate(videoram_size);
+
+	// register for state saving
+	save_item(NAME(m_txoff));
+	save_item(NAME(m_40));
+	save_item(NAME(m_flshclk_ctr));
+	save_item(NAME(m_flshclk));
+	save_item(NAME(m_attr_data));
+	save_item(NAME(m_hrs));
+	save_item(NAME(m_hrc));
+	save_item(NAME(m_sync));
+	save_item(NAME(m_v50_addr));
+	save_item(NAME(m_hru2_a8));
+	save_item(NAME(m_vsync_shift));
+	save_item(NAME(m_vsync));
+	save_item(NAME(m_d_vsync));
+
 	// initialize variables
 	for (auto & elem : m_hrc)
 	{
@@ -427,10 +451,6 @@ void abc806_state::video_start()
 	m_d_vsync = 1;
 	m_vsync = 1;
 	m_40 = 1;
-
-	// allocate memory
-	m_char_ram.allocate(ABC806_CHAR_RAM_SIZE);
-	m_attr_ram.allocate(ABC806_ATTR_RAM_SIZE);
 }
 
 
@@ -483,7 +503,7 @@ void abc806_state::abc806_video(machine_config &config)
 	m_crtc->set_screen(SCREEN_TAG);
 	m_crtc->set_show_border_area(true);
 	m_crtc->set_char_width(ABC800_CHAR_WIDTH);
-	m_crtc->set_update_row_callback(FUNC(abc806_state::abc806_update_row), this);
+	m_crtc->set_update_row_callback(FUNC(abc806_state::abc806_update_row));
 	m_crtc->out_hsync_callback().set(FUNC(abc806_state::hs_w));
 	m_crtc->out_vsync_callback().set(FUNC(abc806_state::vs_w));
 

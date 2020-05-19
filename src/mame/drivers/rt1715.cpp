@@ -63,10 +63,10 @@ public:
 	void rt1715w(machine_config &config);
 
 private:
-	DECLARE_READ8_MEMBER(memory_read_byte);
-	DECLARE_WRITE8_MEMBER(memory_write_byte);
-	DECLARE_READ8_MEMBER(io_read_byte);
-	DECLARE_WRITE8_MEMBER(io_write_byte);
+	uint8_t memory_read_byte(offs_t offset);
+	void memory_write_byte(offs_t offset, uint8_t data);
+	uint8_t io_read_byte(offs_t offset);
+	void io_write_byte(offs_t offset, uint8_t data);
 	DECLARE_WRITE_LINE_MEMBER(busreq_w);
 	DECLARE_WRITE_LINE_MEMBER(tc_w);
 	DECLARE_WRITE8_MEMBER(rt1715_floppy_enable);
@@ -265,7 +265,7 @@ WRITE8_MEMBER(rt1715_state::rt1715w_set_bank)
 	m_w = w;
 }
 
-READ8_MEMBER(rt1715_state::memory_read_byte)
+uint8_t rt1715_state::memory_read_byte(offs_t offset)
 {
 	uint8_t data = 0;
 
@@ -286,7 +286,7 @@ READ8_MEMBER(rt1715_state::memory_read_byte)
 	return data;
 }
 
-WRITE8_MEMBER(rt1715_state::memory_write_byte)
+void rt1715_state::memory_write_byte(offs_t offset, uint8_t data)
 {
 	switch (m_w)
 	{
@@ -304,13 +304,13 @@ WRITE8_MEMBER(rt1715_state::memory_write_byte)
 	}
 }
 
-READ8_MEMBER(rt1715_state::io_read_byte)
+uint8_t rt1715_state::io_read_byte(offs_t offset)
 {
 	address_space &prog_space = m_maincpu->space(AS_IO);
 	return prog_space.read_byte(offset);
 }
 
-WRITE8_MEMBER(rt1715_state::io_write_byte)
+void rt1715_state::io_write_byte(offs_t offset, uint8_t data)
 {
 	address_space &prog_space = m_maincpu->space(AS_IO);
 	prog_space.write_byte(offset, data);
@@ -331,8 +331,7 @@ WRITE_LINE_MEMBER(rt1715_state::crtc_drq_w)
 {
 	if (state)
 	{
-		address_space &mem = m_maincpu->space(AS_PROGRAM);
-		m_crtc->dack_w(mem, 0, m_p_videoram[m_dma_adr++]);
+		m_crtc->dack_w(m_p_videoram[m_dma_adr++]);
 		m_dma_adr %= (80 * 24);
 	}
 }
@@ -446,7 +445,7 @@ void rt1715_state::rt1715w_io(address_map &map)
 {
 	rt1715_base_io(map);
 
-	map(0x00, 0x00).rw(m_dma, FUNC(z80dma_device::bus_r), FUNC(z80dma_device::bus_w)); // A2
+	map(0x00, 0x00).rw(m_dma, FUNC(z80dma_device::read), FUNC(z80dma_device::write)); // A2
 	map(0x04, 0x07).rw(m_ctc2, FUNC(z80ctc_device::read), FUNC(z80ctc_device::write)); // A4
 //  map(0x1a, 0x1b) // chargen write protection
 	map(0x1c, 0x1d).m(m_fdc, FUNC(i8272a_device::map));
@@ -603,7 +602,7 @@ void rt1715_state::rt1715(machine_config &config)
 
 	I8275(config, m_crtc, 13.824_MHz_XTAL / 8);
 	m_crtc->set_character_width(8);
-	m_crtc->set_display_callback(FUNC(rt1715_state::crtc_display_pixels), this);
+	m_crtc->set_display_callback(FUNC(rt1715_state::crtc_display_pixels));
 	m_crtc->set_screen(m_screen);
 
 	/* keyboard */

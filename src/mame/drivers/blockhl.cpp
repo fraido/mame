@@ -58,7 +58,7 @@ public:
 
 	DECLARE_WRITE8_MEMBER(sound_irq_w);
 
-	DECLARE_WRITE8_MEMBER(banking_callback);
+	void banking_callback(uint8_t data);
 
 	void blockhl(machine_config &config);
 	void audio_map(address_map &map);
@@ -194,7 +194,7 @@ void blockhl_state::machine_start()
 	m_rombank->configure_entries(0, 4, memregion("maincpu")->base(), 0x2000);
 }
 
-WRITE8_MEMBER( blockhl_state::banking_callback )
+void blockhl_state::banking_callback(uint8_t data)
 {
 	// bits 0-1 = ROM bank
 	m_rombank->set_entry(data & 0x03);
@@ -306,13 +306,13 @@ void blockhl_state::blockhl(machine_config &config)
 	K052109(config, m_k052109, 0);
 	m_k052109->set_palette("palette");
 	m_k052109->set_screen("screen");
-	m_k052109->set_tile_callback(FUNC(blockhl_state::tile_callback), this);
+	m_k052109->set_tile_callback(FUNC(blockhl_state::tile_callback));
 	m_k052109->irq_handler().set_inputline(m_maincpu, KONAMI_IRQ_LINE);
 
 	K051960(config, m_k051960, 0);
 	m_k051960->set_palette("palette");
 	m_k051960->set_screen("screen");
-	m_k051960->set_sprite_callback(FUNC(blockhl_state::sprite_callback), this);
+	m_k051960->set_sprite_callback(FUNC(blockhl_state::sprite_callback));
 
 	// sound hardware
 	SPEAKER(config, "mono").front_center();

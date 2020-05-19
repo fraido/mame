@@ -33,7 +33,7 @@ void zx_state::device_timer(emu_timer &timer, device_timer_id id, int param, voi
 		zx_ula_hsync();
 		break;
 	default:
-		assert_always(false, "Unknown id in zx_state::device_timer");
+		throw emu_fatalerror("Unknown id in zx_state::device_timer");
 	}
 }
 
@@ -50,7 +50,7 @@ void zx_state::zx_ula_hsync()
 	recalc_hsync();
 }
 
-WRITE8_MEMBER(zx_state::refresh_w)
+void zx_state::refresh_w(offs_t offset, uint8_t data)
 {
 	if((offset ^ m_prev_refresh) & 0x40)
 		m_maincpu->set_input_line(INPUT_LINE_IRQ0, offset & 0x40 ? CLEAR_LINE : ASSERT_LINE);

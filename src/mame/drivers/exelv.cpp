@@ -92,14 +92,14 @@ private:
 
 	DECLARE_READ8_MEMBER( mailbox_wx319_r );
 	DECLARE_WRITE8_MEMBER( mailbox_wx318_w );
-	DECLARE_READ8_MEMBER( tms7020_porta_r );
-	DECLARE_WRITE8_MEMBER( tms7020_portb_w );
-	DECLARE_READ8_MEMBER( tms7041_porta_r );
-	DECLARE_WRITE8_MEMBER( tms7041_portb_w );
-	DECLARE_READ8_MEMBER( tms7041_portc_r );
-	DECLARE_WRITE8_MEMBER( tms7041_portc_w );
-	DECLARE_READ8_MEMBER( tms7041_portd_r );
-	DECLARE_WRITE8_MEMBER( tms7041_portd_w );
+	uint8_t tms7020_porta_r();
+	void tms7020_portb_w(uint8_t data);
+	uint8_t tms7041_porta_r();
+	void tms7041_portb_w(uint8_t data);
+	uint8_t tms7041_portc_r();
+	void tms7041_portc_w(uint8_t data);
+	uint8_t tms7041_portd_r();
+	void tms7041_portd_w(uint8_t data);
 	DECLARE_READ8_MEMBER( rom_r );
 
 	DECLARE_MACHINE_START(exl100);
@@ -231,7 +231,7 @@ WRITE8_MEMBER(exelv_state::mailbox_wx318_w)
     A6 -
     A7 -
 */
-READ8_MEMBER(exelv_state::tms7020_porta_r)
+uint8_t exelv_state::tms7020_porta_r()
 {
 	logerror("tms7020_porta_r\n");
 	return ( m_tms7041_portb & 0x80 ) ? 0x01 : 0x00;
@@ -249,7 +249,7 @@ READ8_MEMBER(exelv_state::tms7020_porta_r)
     B6 -
     B7 -
 */
-WRITE8_MEMBER(exelv_state::tms7020_portb_w)
+void exelv_state::tms7020_portb_w(uint8_t data)
 {
 	logerror("tms7020_portb_w: data = 0x%02x\n", data);
 	m_tms7020_portb = data;
@@ -267,7 +267,7 @@ WRITE8_MEMBER(exelv_state::tms7020_portb_w)
     A6 - X1 SCLK A9
     A7 - TMS5220 RDY
 */
-READ8_MEMBER(exelv_state::tms7041_porta_r)
+uint8_t exelv_state::tms7041_porta_r()
 {
 	uint8_t data = 0x00;
 	static uint8_t data_last=0;
@@ -302,7 +302,7 @@ READ8_MEMBER(exelv_state::tms7041_porta_r)
     B6 - W - REV6 WX319-11
     B7 - W - TMS7020 port A bit 0 (REV3)
 */
-WRITE8_MEMBER(exelv_state::tms7041_portb_w)
+void exelv_state::tms7041_portb_w(uint8_t data)
 {
 	logerror("tms7041_portb_w: data = 0x%02x\n", data);
 
@@ -326,7 +326,7 @@ WRITE8_MEMBER(exelv_state::tms7041_portb_w)
 /*
     TMS7041 PORT C - connected to mailbox WX318 and WX319 data bits
 */
-READ8_MEMBER(exelv_state::tms7041_portc_r)
+uint8_t exelv_state::tms7041_portc_r()
 {
 	uint8_t data = 0xff;
 	logerror("tms7041_portc_r\n");
@@ -339,7 +339,7 @@ READ8_MEMBER(exelv_state::tms7041_portc_r)
 }
 
 
-WRITE8_MEMBER(exelv_state::tms7041_portc_w)
+void exelv_state::tms7041_portc_w(uint8_t data)
 {
 	logerror("tms7041_portc_w: data = 0x%02x\n", data);
 	m_tms7041_portc = data;
@@ -357,7 +357,7 @@ WRITE8_MEMBER(exelv_state::tms7041_portc_w)
     D6 - TMS5220 D1
     D7 - TMS5220 D0
 */
-READ8_MEMBER(exelv_state::tms7041_portd_r)
+uint8_t exelv_state::tms7041_portd_r()
 {
 	uint8_t data = m_tms5220c->status_r();
 	logerror("tms7041_portd_r: data = 0x%02x\n", data);
@@ -365,7 +365,7 @@ READ8_MEMBER(exelv_state::tms7041_portd_r)
 }
 
 
-WRITE8_MEMBER(exelv_state::tms7041_portd_w)
+void exelv_state::tms7041_portd_w(uint8_t data)
 {
 	logerror("tms7041_portd_w: data = 0x%02x\n", data);
 
@@ -484,7 +484,7 @@ MACHINE_START_MEMBER( exelv_state, exeltel)
 void exelv_state::exl100(machine_config &config)
 {
 	/* basic machine hardware */
-	TMS7020_EXL(config, m_maincpu, XTAL(4'915'200));
+	TMS7020_EXL(config, m_maincpu, 4.9152_MHz_XTAL);
 	m_maincpu->set_addrmap(AS_PROGRAM, &exelv_state::tms7020_mem);
 	m_maincpu->in_porta().set(FUNC(exelv_state::tms7020_porta_r));
 	m_maincpu->out_portb().set(FUNC(exelv_state::tms7020_portb_w));
@@ -492,7 +492,7 @@ void exelv_state::exl100(machine_config &config)
 	TIMER(config, "scantimer").configure_scanline(FUNC(exelv_state::exelv_hblank_interrupt), "screen", 0, 1);
 	MCFG_MACHINE_START_OVERRIDE(exelv_state, exl100)
 
-	tms7041_device &subcpu(TMS7041(config, "tms7041", XTAL(4'915'200)));
+	tms7041_device &subcpu(TMS7041(config, "tms7041", 4.9152_MHz_XTAL));
 	subcpu.in_porta().set(FUNC(exelv_state::tms7041_porta_r));
 	subcpu.out_portb().set(FUNC(exelv_state::tms7041_portb_w));
 	subcpu.in_portc().set(FUNC(exelv_state::tms7041_portc_r));
@@ -500,9 +500,9 @@ void exelv_state::exl100(machine_config &config)
 	subcpu.in_portd().set(FUNC(exelv_state::tms7041_portd_r));
 	subcpu.out_portd().set(FUNC(exelv_state::tms7041_portd_w));
 
-	config.m_perfect_cpu_quantum = subtag("maincpu");
+	config.set_perfect_quantum(m_maincpu);
 
-	TMS3556(config, m_tms3556);
+	TMS3556(config, m_tms3556, 18_MHz_XTAL);
 
 	/* video hardware */
 	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
@@ -538,7 +538,8 @@ void exelv_state::exl100(machine_config &config)
 void exelv_state::exeltel(machine_config &config)
 {
 	/* basic machine hardware */
-	TMS7040(config, m_maincpu, XTAL(4'915'200));
+	TMS7040(config, m_maincpu, 9.8304_MHz_XTAL);
+	m_maincpu->set_divide_by_4();
 	m_maincpu->set_addrmap(AS_PROGRAM, &exelv_state::tms7040_mem);
 	m_maincpu->in_porta().set(FUNC(exelv_state::tms7020_porta_r));
 	m_maincpu->out_portb().set(FUNC(exelv_state::tms7020_portb_w));
@@ -546,7 +547,8 @@ void exelv_state::exeltel(machine_config &config)
 	TIMER(config, "scantimer").configure_scanline(FUNC(exelv_state::exelv_hblank_interrupt), "screen", 0, 1);
 	MCFG_MACHINE_START_OVERRIDE(exelv_state, exeltel)
 
-	tms7042_device &subcpu(TMS7042(config, "tms7042", XTAL(4'915'200)));
+	tms7042_device &subcpu(TMS7042(config, "tms7042", 9.8304_MHz_XTAL));
+	subcpu.set_divide_by_4();
 	subcpu.in_porta().set(FUNC(exelv_state::tms7041_porta_r));
 	subcpu.out_portb().set(FUNC(exelv_state::tms7041_portb_w));
 	subcpu.in_portc().set(FUNC(exelv_state::tms7041_portc_r));
@@ -554,9 +556,9 @@ void exelv_state::exeltel(machine_config &config)
 	subcpu.in_portd().set(FUNC(exelv_state::tms7041_portd_r));
 	subcpu.out_portd().set(FUNC(exelv_state::tms7041_portd_w));
 
-	config.m_perfect_cpu_quantum = subtag("maincpu");
+	config.set_perfect_quantum(m_maincpu);
 
-	TMS3556(config, m_tms3556);
+	TMS3556(config, m_tms3556, 18_MHz_XTAL);
 
 	/* video hardware */
 	screen_device &screen(SCREEN(config, "screen", SCREEN_TYPE_RASTER));
@@ -579,7 +581,7 @@ void exelv_state::exeltel(machine_config &config)
 
 	/* sound */
 	SPEAKER(config, "mono").front_center();
-	TMS5220C(config, m_tms5220c, 640000);
+	TMS5220C(config, m_tms5220c, 9.8304_MHz_XTAL / 15); // unknown divider for "VSPCLK" (generated by TAHC06 gate array)
 	m_tms5220c->set_speechrom_tag("vsm");
 	m_tms5220c->add_route(ALL_OUTPUTS, "mono", 1.00);
 }

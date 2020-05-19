@@ -32,7 +32,7 @@
    * Kimble Double HI-LO (z80 version),   198?,  Kimble Ireland.
    * PMA Poker,                           198?,  PMA.
    * Poker / Black Jack (Model 7521),     198?,  M. Kramer Manufacturing.
-   * Draw Poker (Joker Poker ver.01),     1984,  Coinmaster.
+   * Draw Poker (Joker Poker V.01),       1984,  Coinmaster.
 
   -- 8080 based --
 
@@ -633,7 +633,7 @@ void norautp_state::norautp_palette(palette_device &palette) const
 *      R/W Handlers      *
 *************************/
 
-WRITE8_MEMBER(norautp_state::mainlamps_w)
+void norautp_state::mainlamps_w(uint8_t data)
 {
 /*  PPI-0 (60h-63h); PortB OUT.
     Lamps:
@@ -660,7 +660,7 @@ WRITE8_MEMBER(norautp_state::mainlamps_w)
 //  popmessage("lamps: %02x", data);
 }
 
-WRITE8_MEMBER(norautp_state::soundlamps_w)
+void norautp_state::soundlamps_w(uint8_t data)
 {
 /*  PPI-1 (a0h-a3h); PortC OUT.
     Sound & Lamps:
@@ -683,7 +683,7 @@ WRITE8_MEMBER(norautp_state::soundlamps_w)
 //  popmessage("sound bits 4-5-6-7: %02x, %02x, %02x, %02x", ((data >> 4) & 0x01), ((data >> 5) & 0x01), ((data >> 6) & 0x01), ((data >> 7) & 0x01));
 }
 
-WRITE8_MEMBER(norautp_state::counterlamps_w)
+void norautp_state::counterlamps_w(uint8_t data)
 {
 /*  PPI-0 (60h-63h); PortC OUT.
     Lamps & Coin Counters:
@@ -845,9 +845,9 @@ void norautp_state::norautp_portmap(address_map &map)
 	map(0x60, 0x63).mirror(0x1c).rw("ppi8255_0", FUNC(i8255_device::read), FUNC(i8255_device::write));
 	map(0xa0, 0xa3).mirror(0x1c).rw("ppi8255_1", FUNC(i8255_device::read), FUNC(i8255_device::write));
 	map(0xc0, 0xc3).mirror(0x3c).rw("ppi8255_2", FUNC(i8255_device::read), FUNC(i8255_device::write));
-	//AM_RANGE(0xc0, 0xc0) AM_MIRROR(0x3c) AM_READWRITE(vram_data_r, vram_data_w)
-	//AM_RANGE(0xc1, 0xc1) AM_MIRROR(0x3c) AM_WRITE(vram_addr_w)
-	//AM_RANGE(0xc2, 0xc2) AM_MIRROR(0x3c) AM_READ(test_r)
+	//map(0xc0, 0xc0).mirror(0x3c).rw(FUNC(norautp_state::vram_data_r), FUNC(norautp_state::vram_data_w));
+	//map(0xc1, 0xc1).mirror(0x3c).w(FUNC(norautp_state::vram_addr_w));
+	//map(0xc2, 0xc2).mirror(0x3c).r(FUNC(norautp_state::test_r));
 	map(0xef, 0xef).r(FUNC(norautp_state::test2_r));
 }
 
@@ -874,7 +874,7 @@ void norautp_state::nortest1_map(address_map &map)
 
 void norautp_state::norautxp_map(address_map &map)
 {
-//  ADDRESS_MAP_GLOBAL_MASK(~0x4000)
+//  map.global_mask(~0x4000);
 	map.global_mask(0x7fff);
 	map(0x0000, 0x3fff).rom(); /* need to be checked */
 	map(0x6000, 0x67ff).ram().share("nvram"); /* HM6116 */
@@ -952,7 +952,7 @@ void norautp_state::ssjkrpkr_map(address_map &map)
 
 void norautp_state::dphltest_map(address_map &map)
 {
-//  ADDRESS_MAP_GLOBAL_MASK(0x7fff) /* A15 not connected */
+//  map.global_mask(0x7fff); /* A15 not connected */
 	map(0x0000, 0x6fff).rom();
 	map(0x7000, 0x7fff).ram();
 	map(0x8000, 0x87ff).ram().share("nvram");
@@ -1449,6 +1449,15 @@ void norautp_state::cgidjp(machine_config &config)
 	m_maincpu->set_addrmap(AS_PROGRAM, &norautp_state::cgidjp_map);
 	m_maincpu->set_addrmap(AS_OPCODES, &norautp_state::cgidjp_opcodes_map);
 	m_maincpu->set_vblank_int("screen", FUNC(norautp_state::irq0_line_hold));
+}
+
+void norautp_state::cdrawpkr(machine_config &config)
+{
+	noraut_base(config);
+
+	/* basic machine hardware */
+	m_maincpu->set_vblank_int("screen", FUNC(norautp_state::irq0_line_hold));
+	m_screen->set_visarea(5*8, 61*8-1, (0*16) + 8, 16*16-1);
 }
 
 /********** 8080 based **********/
@@ -3575,7 +3584,7 @@ ROM_END
 
   Draw Poker
   Coinmaster.
-  Based on Joker Poker.
+  Based on Joker Poker V.01.
 
   Noraut Z80 based HW.
 
@@ -3584,6 +3593,8 @@ ROM_END
      PPI #0:  offset 0x70-0x73  config = 0x90
      PPI #1:  offset 0xB0-0xB3  config = 0x92
      PPI #2:  offset 0xD0-0xD3  config = 0xC0
+
+  The game needs approx 20 seconds to boot the game.
 
 */
 
@@ -3758,7 +3769,7 @@ GAME(  198?, kimblz80, 0,       kimble,   norautp,  norautp_state, empty_init, R
 GAME(  1983, pma,      0,       nortest1, norautp,  norautp_state, empty_init, ROT0, "PMA",                      "PMA Poker",                           MACHINE_NOT_WORKING )
 GAMEL( 198?, bjpoker,  0,       norautxp, norautrh, norautp_state, empty_init, ROT0, "M.Kramer Manufacturing.",  "Poker / Black Jack (Model 7521)",     MACHINE_NOT_WORKING, layout_noraut12 )
 GAME(  19??, newhilop, 0,       newhilop, norautp,  norautp_state, empty_init, ROT0, "Song Won?",                "New Hi-Low Poker",                    MACHINE_NOT_WORKING )
-GAMEL( 1984, cdrawpkr, 0,       norautp,  cdrawpkr, norautp_state, empty_init, ROT0, "Coinmaster",               "Draw Poker (Joker Poker ver.01)",     0,                   layout_noraut11 )
+GAMEL( 1984, cdrawpkr, 0,       cdrawpkr, cdrawpkr, norautp_state, empty_init, ROT0, "Coinmaster",               "Draw Poker (Joker Poker V.01)",       0,                   layout_noraut11 )
 
 
 /************************************* 8080 sets **************************************/

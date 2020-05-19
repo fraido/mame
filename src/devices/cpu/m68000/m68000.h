@@ -128,19 +128,16 @@ protected:
 	static void m68ki_set_one(unsigned short opcode, u16 state, const opcode_handler_struct &s);
 	static void m68ki_build_opcode_table(void);
 
-	void presave();
-	void postload();
-
 	void clear_all(void);
 
 	// device_disasm_interface overrides
 	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
 	// device_execute_interface overrides
-	virtual u32 execute_min_cycles() const override { return 4; };
-	virtual u32 execute_max_cycles() const override { return 158; };
-	virtual u32 execute_input_lines() const override { return m_interrupt_mixer ? 8 : 3; }; // number of input lines
-	virtual bool execute_input_edge_triggered(int inputnum) const override { return m_interrupt_mixer ? inputnum == M68K_IRQ_7 : false; }
+	virtual u32 execute_min_cycles() const noexcept override { return 4; };
+	virtual u32 execute_max_cycles() const noexcept override { return 158; };
+	virtual u32 execute_input_lines() const noexcept override { return m_interrupt_mixer ? 8 : 3; }; // number of input lines
+	virtual bool execute_input_edge_triggered(int inputnum) const noexcept override { return m_interrupt_mixer ? inputnum == M68K_IRQ_7 : false; }
 	virtual void execute_run() override;
 	virtual void execute_set_input(int inputnum, int state) override;
 
@@ -148,6 +145,8 @@ protected:
 	virtual void device_start() override;
 	virtual void device_reset() override;
 	virtual void device_stop() override;
+	virtual void device_pre_save() override;
+	virtual void device_post_load() override;
 
 	// device_memory_interface overrides
 	virtual space_config_vector memory_space_config() const override;
@@ -159,13 +158,13 @@ protected:
 	void define_state(void);
 
 public:
-	void set_reset_callback(write_line_delegate callback);
-	void set_cmpild_callback(write32_delegate callback);
-	void set_rte_callback(write_line_delegate callback);
-	void set_tas_write_callback(write8_delegate callback);
+	template <typename... T> void set_reset_callback(T &&... args) { m_reset_instr_callback.set(std::forward<T>(args)...); }
+	template <typename... T> void set_cmpild_callback(T &&... args) { m_cmpild_instr_callback.set(std::forward<T>(args)...); }
+	template <typename... T> void set_rte_callback(T &&... args) { m_rte_instr_callback.set(std::forward<T>(args)...); }
+	template <typename... T> void set_tas_write_callback(T &&... args) { m_tas_write_callback.set(std::forward<T>(args)...); }
 	u16 get_fc();
 	void set_hmmu_enable(int enable);
-	int get_pmmu_enable() {return m_pmmu_enabled;};
+	int get_pmmu_enable() const {return m_pmmu_enabled;};
 	void set_fpu_enable(int enable);
 	void set_buserror_details(u32 fault_addr, u8 rw, u8 fc);
 	void disable_interrupt_mixer() { m_interrupt_mixer = false; }
@@ -385,8 +384,8 @@ public:
 
 	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
-	virtual u32 execute_min_cycles() const override { return 4; };
-	virtual u32 execute_max_cycles() const override { return 158; };
+	virtual u32 execute_min_cycles() const noexcept override { return 4; };
+	virtual u32 execute_max_cycles() const noexcept override { return 158; };
 
 	// device-level overrides
 	virtual void device_start() override;
@@ -409,8 +408,8 @@ public:
 
 	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
-	virtual u32 execute_min_cycles() const override { return 4; };
-	virtual u32 execute_max_cycles() const override { return 158; };
+	virtual u32 execute_min_cycles() const noexcept override { return 4; };
+	virtual u32 execute_max_cycles() const noexcept override { return 158; };
 
 	// device-level overrides
 	virtual void device_start() override;
@@ -424,8 +423,8 @@ public:
 
 	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
-	virtual u32 execute_min_cycles() const override { return 4; };
-	virtual u32 execute_max_cycles() const override { return 158; };
+	virtual u32 execute_min_cycles() const noexcept override { return 4; };
+	virtual u32 execute_max_cycles() const noexcept override { return 158; };
 
 	// device-level overrides
 	virtual void device_start() override;
@@ -439,8 +438,8 @@ public:
 
 	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
-	virtual u32 execute_min_cycles() const override { return 4; };
-	virtual u32 execute_max_cycles() const override { return 158; };
+	virtual u32 execute_min_cycles() const noexcept override { return 4; };
+	virtual u32 execute_max_cycles() const noexcept override { return 158; };
 
 	// device-level overrides
 	virtual void device_start() override;
@@ -454,8 +453,8 @@ public:
 
 	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
-	virtual u32 execute_min_cycles() const override { return 2; };
-	virtual u32 execute_max_cycles() const override { return 158; };
+	virtual u32 execute_min_cycles() const noexcept override { return 2; };
+	virtual u32 execute_max_cycles() const noexcept override { return 158; };
 
 	// device-level overrides
 	virtual void device_start() override;
@@ -469,8 +468,8 @@ public:
 
 	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
-	virtual u32 execute_min_cycles() const override { return 2; };
-	virtual u32 execute_max_cycles() const override { return 158; };
+	virtual u32 execute_min_cycles() const noexcept override { return 2; };
+	virtual u32 execute_max_cycles() const noexcept override { return 158; };
 
 	// device-level overrides
 	virtual void device_start() override;
@@ -484,8 +483,8 @@ public:
 
 	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
-	virtual u32 execute_min_cycles() const override { return 2; };
-	virtual u32 execute_max_cycles() const override { return 158; };
+	virtual u32 execute_min_cycles() const noexcept override { return 2; };
+	virtual u32 execute_max_cycles() const noexcept override { return 158; };
 
 	// device-level overrides
 	virtual void device_start() override;
@@ -499,8 +498,8 @@ public:
 
 	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
-	virtual u32 execute_min_cycles() const override { return 2; };
-	virtual u32 execute_max_cycles() const override { return 158; };
+	virtual u32 execute_min_cycles() const noexcept override { return 2; };
+	virtual u32 execute_max_cycles() const noexcept override { return 158; };
 
 	// device-level overrides
 	virtual void device_start() override;
@@ -514,8 +513,8 @@ public:
 
 	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
-	virtual u32 execute_min_cycles() const override { return 2; };
-	virtual u32 execute_max_cycles() const override { return 158; };
+	virtual u32 execute_min_cycles() const noexcept override { return 2; };
+	virtual u32 execute_max_cycles() const noexcept override { return 158; };
 
 	virtual bool memory_translate(int space, int intention, offs_t &address) override;
 
@@ -531,8 +530,8 @@ public:
 
 	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
-	virtual u32 execute_min_cycles() const override { return 2; };
-	virtual u32 execute_max_cycles() const override { return 158; };
+	virtual u32 execute_min_cycles() const noexcept override { return 2; };
+	virtual u32 execute_max_cycles() const noexcept override { return 158; };
 
 	// device-level overrides
 	virtual void device_start() override;
@@ -546,8 +545,8 @@ public:
 
 	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
-	virtual u32 execute_min_cycles() const override { return 2; };
-	virtual u32 execute_max_cycles() const override { return 158; };
+	virtual u32 execute_min_cycles() const noexcept override { return 2; };
+	virtual u32 execute_max_cycles() const noexcept override { return 158; };
 
 	// device-level overrides
 	virtual void device_start() override;
@@ -561,8 +560,8 @@ public:
 
 	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
-	virtual u32 execute_min_cycles() const override { return 2; };
-	virtual u32 execute_max_cycles() const override { return 158; };
+	virtual u32 execute_min_cycles() const noexcept override { return 2; };
+	virtual u32 execute_max_cycles() const noexcept override { return 158; };
 
 	// device-level overrides
 	virtual void device_start() override;
@@ -576,8 +575,8 @@ public:
 
 	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
-	virtual u32 execute_min_cycles() const override { return 2; };
-	virtual u32 execute_max_cycles() const override { return 158; };
+	virtual u32 execute_min_cycles() const noexcept override { return 2; };
+	virtual u32 execute_max_cycles() const noexcept override { return 158; };
 
 	// device-level overrides
 	virtual void device_start() override;
@@ -591,8 +590,8 @@ public:
 
 	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
-	virtual u32 execute_min_cycles() const override { return 2; };
-	virtual u32 execute_max_cycles() const override { return 158; };
+	virtual u32 execute_min_cycles() const noexcept override { return 2; };
+	virtual u32 execute_max_cycles() const noexcept override { return 158; };
 
 	// device-level overrides
 	virtual void device_start() override;
@@ -603,8 +602,8 @@ class scc68070_base_device : public m68000_base_device
 protected:
 	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
-	virtual u32 execute_min_cycles() const override { return 4; };
-	virtual u32 execute_max_cycles() const override { return 158; };
+	virtual u32 execute_min_cycles() const noexcept override { return 4; };
+	virtual u32 execute_max_cycles() const noexcept override { return 158; };
 
 	// device-level overrides
 	virtual void device_start() override;
@@ -624,8 +623,8 @@ public:
 
 	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
-	virtual u32 execute_min_cycles() const override { return 2; };
-	virtual u32 execute_max_cycles() const override { return 158; };
+	virtual u32 execute_min_cycles() const noexcept override { return 2; };
+	virtual u32 execute_max_cycles() const noexcept override { return 158; };
 
 	// device-level overrides
 	virtual void device_start() override;
@@ -645,8 +644,8 @@ public:
 
 	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
-	virtual u32 execute_min_cycles() const override { return 2; };
-	virtual u32 execute_max_cycles() const override { return 158; };
+	virtual u32 execute_min_cycles() const noexcept override { return 2; };
+	virtual u32 execute_max_cycles() const noexcept override { return 158; };
 
 
 	// device-level overrides

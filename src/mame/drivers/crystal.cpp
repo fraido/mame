@@ -21,21 +21,21 @@
     program with the correct data
 
     MAME driver by ElSemi
-	Additional work and refactoring by Angelo Salese
-	
-	TODO:
-	- provide NVRAM defaults where applicable;
-	- add an actual reset button (helps with inp record/playback);
-	- donghaer: needs "raster effect" for 2 players mode split screen, but no 
-	  interrupt is actually provided for the task so apparently not a timer 
-	  related effect;
-	- wulybuly: strips off main RAM to texture transfers except for text after 
-	  the first couple of frames;
-	- maldaiza: PIC protection.
-	- urachamu: some animation timings seems off, like bat hit animation before starting a given game.
-	  They were actually too fast before adding 30 Hz vblank for interlace mode, even if the game don't
-	  really read crtc blanking reg or use any other interrupt but the coin ones;
-	- urachamu: investigate what CDMA in test mode really do, assuming it's not a dud;
+    Additional work and refactoring by Angelo Salese
+
+    TODO:
+    - provide NVRAM defaults where applicable;
+    - add an actual reset button (helps with inp record/playback);
+    - donghaer: needs "raster effect" for 2 players mode split screen, but no
+      interrupt is actually provided for the task so apparently not a timer
+      related effect;
+    - wulybuly: strips off main RAM to texture transfers except for text after
+      the first couple of frames;
+    - maldaiza: PIC protection.
+    - urachamu: some animation timings seems off, like bat hit animation before starting a given game.
+      They were actually too fast before adding 30 Hz vblank for interlace mode, even if the game don't
+      really read crtc blanking reg or use any other interrupt but the coin ones;
+    - urachamu: investigate what CDMA in test mode really do, assuming it's not a dud;
 
 ========================================================================================================
 
@@ -187,7 +187,6 @@ private:
 	uint32_t    m_maxbank;
 	uint32_t    m_FlashCmd;
 
-	IRQ_CALLBACK_MEMBER(icallback);
 	DECLARE_READ32_MEMBER(system_input_r);
 	DECLARE_WRITE32_MEMBER(Banksw_w);
 	DECLARE_READ32_MEMBER(FlashCmd_r);
@@ -206,10 +205,6 @@ private:
 	uint32_t m_PIO;
 };
 
-IRQ_CALLBACK_MEMBER(crystal_state::icallback)
-{
-	return m_vr0soc->irq_callback();
-}
 
 READ32_MEMBER(crystal_state::system_input_r)
 {
@@ -455,28 +450,28 @@ static INPUT_PORTS_START( crystal )
 	PORT_SERVICE_NO_TOGGLE( 0x80, IP_ACTIVE_LOW )
 
 	PORT_START("DSW")
-	PORT_DIPNAME( 0x01, 0x01, DEF_STR( Pause ) )
+	PORT_DIPNAME( 0x01, 0x01, DEF_STR( Pause ) )       PORT_DIPLOCATION("DSW:1")
 	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x02, 0x02, DEF_STR( Free_Play ) )
+	PORT_DIPNAME( 0x02, 0x02, DEF_STR( Free_Play ) )   PORT_DIPLOCATION("DSW:2")
 	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x04, 0x04, DEF_STR( Unknown ) )
+	PORT_DIPNAME( 0x04, 0x04, DEF_STR( Unknown ) )     PORT_DIPLOCATION("DSW:3")
 	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Unknown ) )
+	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Unknown ) )     PORT_DIPLOCATION("DSW:4")
 	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Unknown ) )
+	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Unknown ) )     PORT_DIPLOCATION("DSW:5")
 	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x20, 0x20, DEF_STR( Unknown ) )
+	PORT_DIPNAME( 0x20, 0x20, DEF_STR( Unknown ) )     PORT_DIPLOCATION("DSW:6")
 	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Unknown ) )
+	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Unknown ) )     PORT_DIPLOCATION("DSW:7")
 	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Test ) )
+	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Test ) )        PORT_DIPLOCATION("DSW:8")
 	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
 INPUT_PORTS_END
@@ -553,13 +548,13 @@ void crystal_state::crystal(machine_config &config)
 {
 	SE3208(config, m_maincpu, 14318180 * 3); // TODO : different between each PCBs
 	m_maincpu->set_addrmap(AS_PROGRAM, &crystal_state::crystal_mem);
-	m_maincpu->set_irq_acknowledge_callback(FUNC(crystal_state::icallback));
+	m_maincpu->iackx_cb().set(m_vr0soc, FUNC(vrender0soc_device::irq_callback));
 
 	NVRAM(config, "nvram", nvram_device::DEFAULT_ALL_0);
 
 	VRENDER0_SOC(config, m_vr0soc, 14318180 * 3);
 	m_vr0soc->set_host_cpu_tag(m_maincpu);
-	
+
 	DS1302(config, m_ds1302, 32.768_kHz_XTAL);
 }
 

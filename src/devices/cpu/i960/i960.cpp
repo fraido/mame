@@ -7,7 +7,7 @@
 
 #ifdef _MSC_VER
 /* logb prototype is different for MS Visual C */
-#include <float.h>
+#include <cfloat>
 #define logb _logb
 #endif
 
@@ -17,10 +17,16 @@ DEFINE_DEVICE_TYPE(I960, i960_cpu_device, "i960kb", "Intel i960KB")
 
 i960_cpu_device::i960_cpu_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
 	: cpu_device(mconfig, I960, tag, owner, clock)
-	, m_program_config("program", ENDIANNESS_LITTLE, 32, 32, 0)
+	, m_stalled(false), m_program_config("program", ENDIANNESS_LITTLE, 32, 32, 0)
 	, m_rcache_pos(0), m_SAT(0), m_PRCB(0), m_PC(0), m_AC(0), m_IP(0), m_PIP(0), m_ICR(0), m_bursting(0), m_immediate_irq(0)
 	, m_immediate_vector(0), m_immediate_pri(0), m_program(nullptr), m_cache(nullptr), m_icount(0)
 {
+	std::fill(std::begin(m_r), std::end(m_r), 0);
+	std::fill(std::begin(m_rcache_frame_addr), std::end(m_rcache_frame_addr), 0);
+	std::fill(std::begin(m_fp), std::end(m_fp), 0);
+
+	for (int i = 0; i <I960_RCACHE_SIZE; i++)
+		std::fill(std::begin(m_rcache[i]), std::end(m_rcache[i]), 0);
 }
 
 
@@ -85,6 +91,27 @@ void i960_cpu_device::send_iac(uint32_t adr)
 	iac[3] = m_program->read_dword(adr+12);
 
 	switch(iac[0]>>24) {
+	case 0x40:  // generate irq
+		break;
+	case 0x41:  // test for pending interrupts
+		// check_irqs() seems to take care of this
+		// though it may not be entirely accurate
+		check_irqs();
+		break;
+	case 0x80:  // store SAT & PRCB in memory
+		m_program->write_dword(iac[1], m_SAT);
+		m_program->write_dword(iac[1]+4, m_PRCB);
+		break;
+	case 0x89:  // invalidate internal instruction cache
+		// we do not emulate the instruction cache, so this is safe to ignore
+		break;
+	case 0x8F:  // enable/disable breakpoints
+		// processor breakpoints are not emulated, safe to ignore
+		break;
+	case 0x91:  // stop processor
+		break;
+	case 0x92:  // continue initialization
+		break;
 	case 0x93: // reinit
 		m_SAT  = iac[1];
 		m_PRCB = iac[2];

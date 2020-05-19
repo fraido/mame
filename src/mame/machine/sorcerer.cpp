@@ -42,7 +42,7 @@ void sorcerer_state::device_timer(emu_timer &timer, device_timer_id id, int para
 		sorcerer_reset(ptr, param);
 		break;
 	default:
-		assert_always(false, "Unknown id in sorcerer_state::device_timer");
+		throw emu_fatalerror("Unknown id in sorcerer_state::device_timer");
 	}
 }
 
@@ -235,6 +235,8 @@ WRITE8_MEMBER(sorcerer_state::port48_w)
 
 	if (BIT(data, 0)) floppy = m_floppy40->get_device();
 	if (BIT(data, 1)) floppy = m_floppy41->get_device();
+	if (BIT(data, 2)) floppy = m_floppy42->get_device();
+	if (BIT(data, 3)) floppy = m_floppy43->get_device();
 
 	m_fdc4->set_floppy(floppy);
 
@@ -264,6 +266,8 @@ WRITE8_MEMBER(sorcerer_state::port34_w)
 
 	if (BIT(data, 0)) floppy = m_floppy30->get_device();
 	if (BIT(data, 1)) floppy = m_floppy31->get_device();
+	if (BIT(data, 2)) floppy = m_floppy32->get_device();
+	if (BIT(data, 3)) floppy = m_floppy33->get_device();
 
 	m_fdc3->set_floppy(floppy);
 
@@ -286,25 +290,25 @@ WRITE_LINE_MEMBER( sorcerer_state::busreq_w )
 	m_dma->bai_w(state); // tell dma that bus has been granted
 }
 
-READ8_MEMBER(sorcerer_state::memory_read_byte)
+uint8_t sorcerer_state::memory_read_byte(offs_t offset)
 {
 	address_space& prog_space = m_maincpu->space(AS_PROGRAM);
 	return prog_space.read_byte(offset);
 }
 
-WRITE8_MEMBER(sorcerer_state::memory_write_byte)
+void sorcerer_state::memory_write_byte(offs_t offset, uint8_t data)
 {
 	address_space& prog_space = m_maincpu->space(AS_PROGRAM);
 	prog_space.write_byte(offset, data);
 }
 
-READ8_MEMBER(sorcerer_state::io_read_byte)
+uint8_t sorcerer_state::io_read_byte(offs_t offset)
 {
 	address_space& prog_space = m_maincpu->space(AS_IO);
 	return prog_space.read_byte(offset);
 }
 
-WRITE8_MEMBER(sorcerer_state::io_write_byte)
+void sorcerer_state::io_write_byte(offs_t offset, uint8_t data)
 {
 	address_space& prog_space = m_maincpu->space(AS_IO);
 	prog_space.write_byte(offset, data);
@@ -463,7 +467,7 @@ void sorcerer_state::machine_start_common(u16 endmem)
 	}
 
 	if (m_cart && m_cart->exists())
-		space.install_read_handler(0xc000, 0xdfff, read8sm_delegate(FUNC(generic_slot_device::read_rom),(generic_slot_device*)m_cart));
+		space.install_read_handler(0xc000, 0xdfff, read8sm_delegate(*m_cart, FUNC(generic_slot_device::read_rom)));
 }
 
 void sorcerer_state::machine_start()
@@ -491,7 +495,7 @@ void sorcerer_state::machine_reset()
 	m_wait = false;
 	m_fe = 0xff;
 	m_2c = 0;
-	port_fe_w(space, 0, 0, 0xff);
+	port_fe_w(space, 0, 0, 0);
 
 	membank("boot")->set_entry(1);
 	timer_set(attotime::from_usec(10), TIMER_RESET);
